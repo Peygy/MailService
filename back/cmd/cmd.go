@@ -6,8 +6,8 @@ import (
 	"backend/utils"
 	"log"
 
-	"github.com/jinzhu/gorm"
 	_ "github.com/lib/pq"
+	"gorm.io/gorm"
 )
 
 type App struct {
@@ -23,13 +23,23 @@ func NewApp(db *gorm.DB) *App {
 func (a *App) Run() {
 	mailServ := service.NewMailService(a.db)
 	authServ := service.NewAuthService(a.db)
+	adminServ := service.NewAdminService(a.db)
+
 	services := service.Service{
-		MailService: mailServ,
-		AuthService: authServ,
+		MailService:  mailServ,
+		AuthService:  authServ,
+		AdminService: adminServ,
 	}
 
-	basicAuthMw := utils.Init(a.db)
+	basicAuthMw := utils.NewBasicAuthMiddleware(a.db)
+	roleMw := utils.NewRoleMiddleware(a.db)
 
 	log.Println("Initialize router")
-	gateway.InitRouter(services, basicAuthMw)
+	gateway.InitRouter(services, basicAuthMw, roleMw)
+
+	if err := utils.ReadMailIMAP(a.db); err != nil {
+		log.Println("Error reading emails:", err)
+	} else {
+		log.Println("Emails read and saved successfully!")
+	}
 }

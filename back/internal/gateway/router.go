@@ -1,6 +1,7 @@
 package gateway
 
 import (
+	"backend/internal/model"
 	"backend/internal/service"
 	"backend/utils"
 	"log"
@@ -10,7 +11,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func InitRouter(services service.Service, basicMw *utils.BasicAuthMiddleware) {
+func InitRouter(services service.Service, basicMw *utils.BasicAuthMiddleware,
+	roleMw *utils.RoleMiddleware,
+) {
 	router := gin.Default()
 	router.Use(cors.Default())
 
@@ -25,6 +28,12 @@ func InitRouter(services service.Service, basicMw *utils.BasicAuthMiddleware) {
 			mail.GET("/sent", services.MailService.GetSentMails)
 			mail.POST("/send", services.MailService.SendMail)
 			mail.DELETE("/trash", services.MailService.ClearTrash)
+		}
+
+		admin := api.Group("/admin", basicMw.Middleware(), roleMw.Middleware(model.RoleAdmin))
+		{
+			admin.GET("/users", services.AdminService.GetAllUsers)
+			admin.DELETE("/users/:id", services.AdminService.DeleteUser)
 		}
 	}
 

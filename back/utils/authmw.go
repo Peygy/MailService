@@ -5,15 +5,15 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jinzhu/gorm"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 type BasicAuthMiddleware struct {
 	db *gorm.DB
 }
 
-func Init(db *gorm.DB) *BasicAuthMiddleware {
+func NewBasicAuthMiddleware(db *gorm.DB) *BasicAuthMiddleware {
 	return &BasicAuthMiddleware{
 		db: db,
 	}
@@ -42,7 +42,7 @@ func (mw *BasicAuthMiddleware) Middleware() gin.HandlerFunc {
 			return
 		}
 
-		c.Set("userID", user.ID)
+		c.Set("userID", user.Id)
 		c.Next()
 	}
 }

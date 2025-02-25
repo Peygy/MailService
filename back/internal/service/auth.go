@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/jinzhu/gorm"
+	"gorm.io/gorm"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -28,24 +28,33 @@ func NewAuthService(db *gorm.DB) AuthService {
 }
 
 func (as *authService) RegisterUser(c *gin.Context) {
-	var user model.User
+	var input struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
 
-	if err := c.ShouldBindJSON(&user); err != nil {
+	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid input"})
 		return
 	}
 
-	if err := utils.IsCorporateEmail(user.Email); err != nil {
+	if err := utils.IsCorporateEmail(input.Email); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
 		return
 	}
 
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error hashing password"})
 		return
 	}
-	user.Password = string(hashedPassword)
+	input.Password = string(hashedPassword)
+
+	user := model.User{
+		Email:    input.Email,
+		Password: input.Password,
+		Role:     model.RoleUser,
+	}
 
 	if err := as.db.Create(&user).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error creating user"})
