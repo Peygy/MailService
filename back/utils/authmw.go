@@ -31,13 +31,13 @@ func (mw *BasicAuthMiddleware) Middleware() gin.HandlerFunc {
 
 		var user model.User
 		if err := mw.db.Where("email = ?", username).First(&user).Error; err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"message": "Invalid credentials"})
+			c.JSON(http.StatusUnauthorized, gin.H{"message": "Invalid email"})
 			c.Abort()
 			return
 		}
 
 		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"message": "Invalid credentials"})
+			c.JSON(http.StatusUnauthorized, gin.H{"message": "Invalid password"})
 			c.Abort()
 			return
 		}

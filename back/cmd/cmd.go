@@ -21,6 +21,12 @@ func NewApp(db *gorm.DB) *App {
 }
 
 func (a *App) Run() {
+	go func() {
+		if err := utils.ReadMailIMAP(a.db); err != nil {
+			log.Println("Error reading emails:", err)
+		}
+	}()
+
 	mailServ := service.NewMailService(a.db)
 	authServ := service.NewAuthService(a.db)
 	adminServ := service.NewAdminService(a.db)
@@ -36,10 +42,4 @@ func (a *App) Run() {
 
 	log.Println("Initialize router")
 	gateway.InitRouter(services, basicAuthMw, roleMw)
-
-	if err := utils.ReadMailIMAP(a.db); err != nil {
-		log.Println("Error reading emails:", err)
-	} else {
-		log.Println("Emails read and saved successfully!")
-	}
 }

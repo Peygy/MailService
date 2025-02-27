@@ -15,7 +15,13 @@ func InitRouter(services service.Service, basicMw *utils.BasicAuthMiddleware,
 	roleMw *utils.RoleMiddleware,
 ) {
 	router := gin.Default()
-	router.Use(cors.Default())
+	router.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:3001"}, // Разрешаем запросы с вашего фронтенда
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Authorization", "Content-Type"}, // Разрешаем Authorization заголовок
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true, // Разрешаем отправку кукис, если это необходимо
+	}))
 
 	api := router.Group("/api/v1")
 	{

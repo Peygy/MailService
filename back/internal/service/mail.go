@@ -32,8 +32,14 @@ func NewMailService(db *gorm.DB) MailService {
 func (ms *mailService) GetInboxMails(c *gin.Context) {
 	userID := c.MustGet("userID").(uint)
 
+	var user model.User
+	if err := ms.db.Where("id = ?", userID).First(&user).Error; err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "Invalid email"})
+		return
+	}
+
 	var mails []model.Mail
-	err := ms.db.Where("sender_id = ? AND is_deleted = false", userID).Find(&mails).Error
+	err := ms.db.Where("receiver = ? AND is_deleted = false", user.Email).Find(&mails).Error
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error fetching inbox mails"})
 		return
@@ -47,7 +53,7 @@ func (ms *mailService) GetSentMails(c *gin.Context) {
 	userID := c.MustGet("userID").(uint)
 
 	var mails []model.Mail
-	err := ms.db.Where("receiver_id = ? AND is_deleted = false", userID).Find(&mails).Error
+	err := ms.db.Where("sender_id = ? AND is_deleted = false", userID).Find(&mails).Error
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error fetching sent mails"})
 		return
@@ -84,17 +90,18 @@ func (ms *mailService) SendMail(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"message": "Invalid credentials"})
 		return
 	}
-	mail.Sender = user.Email
-
-	if err := ms.db.Create(&mail).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error sending mail"})
-		return
-	}
 
 	// Отправляем письмо через SMTP
 	err := utils.SendMailSMTP(mail)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error sending email through SMTP"})
+		return
+	}
+
+	mail.Sender = user.Email
+
+	if err := ms.db.Create(&mail).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error sending mail"})
 		return
 	}
 

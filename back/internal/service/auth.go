@@ -2,12 +2,11 @@ package service
 
 import (
 	"backend/internal/model"
-	"backend/utils"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 type (
@@ -38,17 +37,10 @@ func (as *authService) RegisterUser(c *gin.Context) {
 		return
 	}
 
-	if err := utils.IsCorporateEmail(input.Email); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
-		return
-	}
-
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error hashing password"})
-		return
-	}
-	input.Password = string(hashedPassword)
+	// if err := utils.IsCorporateEmail(input.Email); err != nil {
+	// 	c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+	// 	return
+	// }
 
 	user := model.User{
 		Email:    input.Email,
@@ -65,20 +57,24 @@ func (as *authService) RegisterUser(c *gin.Context) {
 }
 
 func (as *authService) Login(c *gin.Context) {
-	var entryUser model.User
-	if err := c.ShouldBindJSON(&entryUser); err != nil {
+	var input struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+
+	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid input"})
 		return
 	}
 
 	var user model.User
-	if err := as.db.Where("email = ?", entryUser.Email).First(&user).Error; err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"message": "Invalid credentials"})
+	if err := as.db.Where("email = ?", input.Email).First(&user).Error; err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "Invalid email"})
 		return
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(entryUser.Password)); err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"message": "Invalid credentials"})
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(input.Password)); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "Invalid password"})
 		return
 	}
 

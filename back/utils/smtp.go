@@ -2,28 +2,38 @@ package utils
 
 import (
 	"backend/internal/model"
+	"crypto/tls"
 	"fmt"
 	"log"
 	"net/smtp"
+
+	"github.com/jordan-wright/email"
 )
 
 func SendMailSMTP(mail model.Mail) error {
 	// Конфигурация для SMTP сервера
 	smtpHost := "smtp.yandex.ru"
 	smtpPort := "465"
-	smtpUser := "isakov.29072004"
+	smtpUser := "isakov.29072004@yandex.ru"
 	smtpPass := "anuptulzrvloszth"
 
-	msg := fmt.Sprintf("From: %s\n", mail.Sender)
-	msg += fmt.Sprintf("To: %s\n", mail.Receiver)
-	msg += fmt.Sprintf("Subject: %s\n\n", mail.Subject)
-	msg += mail.Body
+	if smtpUser == "" || smtpPass == "" {
+		log.Println("SMTP credentials are missing")
+		return fmt.Errorf("SMTP credentials are missing")
+	}
 
-	// Авторизация
+	e := email.NewEmail()
+	e.From = fmt.Sprintf("%s <%s>", mail.Sender, smtpUser)
+	e.To = []string{mail.Receiver}
+	e.Subject = mail.Subject
+	e.Text = []byte(mail.Body)
+
 	auth := smtp.PlainAuth("", smtpUser, smtpPass, smtpHost)
 
-	// Отправка письма
-	err := smtp.SendMail(smtpHost+":"+smtpPort, auth, mail.Sender, []string{mail.Receiver}, []byte(msg))
+	err := e.SendWithTLS(smtpHost+":"+smtpPort, auth, &tls.Config{
+		InsecureSkipVerify: true,
+		ServerName:         smtpHost,
+	})
 	if err != nil {
 		log.Println("Failed to send email:", err)
 		return err
