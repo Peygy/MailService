@@ -3,7 +3,12 @@ package service
 import (
 	"backend/internal/model"
 	"backend/utils"
+	"encoding/base64"
+	"encoding/json"
+	"log"
 	"net/http"
+	"slices"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -39,27 +44,93 @@ func (ms *mailService) GetInboxMails(c *gin.Context) {
 	}
 
 	var mails []model.Mail
-	err := ms.db.Where("receiver = ? AND is_deleted = false", user.Email).Find(&mails).Error
+	err := ms.db.Find(&mails).Error
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error fetching inbox mails"})
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error fetching mails"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"mails": mails})
+	var newMails []model.Mail
+	for _, mail := range mails {
+		var receivers map[string]interface{}
+		if err := json.Unmarshal(mail.Receivers.Bytes, &receivers); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"message": "Error decoding receivers 1"})
+			return
+		}
+
+		decodedBytes, err := base64.StdEncoding.DecodeString(receivers["Bytes"].(string))
+		if err != nil {
+			log.Println("Error decoding Base64:", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"message": "Error decoding Base64"})
+			return
+		}
+
+		var recs1 []string
+		var recs2 string
+		if err := json.Unmarshal(decodedBytes, &recs1); err != nil {
+			if err := json.Unmarshal(decodedBytes, &recs2); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"message": "Error decoding receivers 2"})
+				return
+			}
+		}
+
+		if slices.Contains(recs1, user.Email) || strings.Contains(recs2, user.Email) {
+			newMails = append(newMails, mail)
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{"mails": newMails})
 }
 
 // Получение отправленных писем
 func (ms *mailService) GetSentMails(c *gin.Context) {
 	userID := c.MustGet("userID").(uint)
 
+	var user model.User
+	if err := ms.db.Where("id = ?", userID).First(&user).Error; err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "Invalid credentials"})
+		return
+	}
+
 	var mails []model.Mail
-	err := ms.db.Where("sender_id = ? AND is_deleted = false", userID).Find(&mails).Error
+	err := ms.db.Where("sender = ? AND is_deleted = false", user.Email).Find(&mails).Error
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error fetching sent mails"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"mails": mails})
+	var responseMails []map[string]interface{}
+	for _, mail := range mails {
+		var receivers map[string]interface{}
+		if err := json.Unmarshal(mail.Receivers.Bytes, &receivers); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"message": "Error decoding receivers"})
+			return
+		}
+
+		decodedBytes, err := base64.StdEncoding.DecodeString(receivers["Bytes"].(string))
+		if err != nil {
+			log.Println("Error decoding Base64:", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"message": "Error decoding Base64"})
+			return
+		}
+
+		var recs []string
+		if err := json.Unmarshal(decodedBytes, &recs); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"message": "Error decoding receivers"})
+			return
+		}
+
+		responseMails = append(responseMails, map[string]interface{}{
+			"ID":        mail.ID,
+			"Sender":    mail.Sender,
+			"Receivers": string(decodedBytes),
+			"Subject":   mail.Subject,
+			"Body":      mail.Body,
+			"CreatedAt": mail.CreatedAt,
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"mails": responseMails})
 }
 
 // Отправка письма
@@ -67,22 +138,14 @@ func (ms *mailService) SendMail(c *gin.Context) {
 	userID := c.MustGet("userID").(uint)
 
 	var mailData struct {
-		Receiver string `json:"receiver"`
-		Subject  string `json:"subject"`
-		Body     string `json:"body"`
+		Receivers []string `json:"receivers"`
+		Subject   string   `json:"subject"`
+		Body      string   `json:"body"`
 	}
 
 	if err := c.ShouldBindJSON(&mailData); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid input"})
 		return
-	}
-
-	// Создаем новое письмо
-	mail := model.Mail{
-		SenderId: int(userID),
-		Receiver: mailData.Receiver,
-		Subject:  mailData.Subject,
-		Body:     mailData.Body,
 	}
 
 	var user model.User
@@ -91,14 +154,18 @@ func (ms *mailService) SendMail(c *gin.Context) {
 		return
 	}
 
-	// Отправляем письмо через SMTP
+	mail := model.Mail{
+		Sender:  user.Email,
+		Subject: mailData.Subject,
+		Body:    mailData.Body,
+	}
+	mail.Receivers.Set(mailData.Receivers)
+
 	err := utils.SendMailSMTP(mail)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error sending email through SMTP"})
 		return
 	}
-
-	mail.Sender = user.Email
 
 	if err := ms.db.Create(&mail).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error sending mail"})
@@ -112,7 +179,13 @@ func (ms *mailService) SendMail(c *gin.Context) {
 func (ms *mailService) ClearTrash(c *gin.Context) {
 	userID := c.MustGet("userID").(uint)
 
-	err := ms.db.Where("sender_id = ? AND is_deleted = true", userID).Delete(&model.Mail{}).Error
+	var user model.User
+	if err := ms.db.Where("id = ?", userID).First(&user).Error; err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "Invalid credentials"})
+		return
+	}
+
+	err := ms.db.Where("sender = ? AND is_deleted = true", user.Email).Delete(&model.Mail{}).Error
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error clearing trash"})
 		return

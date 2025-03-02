@@ -3,8 +3,10 @@ package main
 import (
 	"backend/cmd"
 	"backend/internal/model"
+	"backend/utils"
 	"log"
 
+	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -14,10 +16,12 @@ var (
 )
 
 func init() {
-	dsn := "user=postgres password=postgres dbname=mails port=5432 sslmode=disable"
+	if err := godotenv.Load(); err != nil {
+		log.Print("No .env file found")
+	}
 
 	var err error
-	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	db, err = gorm.Open(postgres.Open(utils.GetEnv("DB_CONF", "")), &gorm.Config{})
 	if err != nil {
 		log.Fatal("Failed to connect to the database:", err)
 	}

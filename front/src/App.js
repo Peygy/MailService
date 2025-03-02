@@ -147,7 +147,7 @@ function Sent({ authHeaders }) {
         <table border="1" cellPadding="5">
           <thead>
             <tr>
-              <th>Receiver</th>
+              <th>Receivers</th>
               <th>Subject</th>
               <th>Body</th>
               <th>Sent At</th>
@@ -156,7 +156,7 @@ function Sent({ authHeaders }) {
           <tbody>
             {mails.map((mail) => (
               <tr key={mail.ID}>
-                <td>{mail.Receiver}</td>
+                <td>{mail.Receivers}</td>
                 <td>{mail.Subject}</td>
                 <td>{mail.Body}</td>
                 <td>{new Date(mail.CreatedAt).toLocaleString()}</td>
@@ -171,14 +171,21 @@ function Sent({ authHeaders }) {
 
 
 function SendMail({ authHeaders }) {
-  const [receiver, setReceiver] = useState("");
+  const [receivers, setReceivers] = useState("");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
 
   const handleSend = async () => {
+    // Разделяем введенные email-адреса по запятой и удаляем лишние пробелы
+    const receiverList = receivers.split(',').map(email => email.trim());
+
     try {
-      await axios.post(`${API_URL}/mail/send`, { receiver, subject, body }, { headers: authHeaders });
+      await axios.post(`${API_URL}/mail/send`, { receivers: receiverList, subject, body }, { headers: authHeaders });
       alert("Mail sent");
+      // Очищаем поля после успешной отправки
+      setReceivers("");
+      setSubject("");
+      setBody("");
     } catch (err) {
       alert("Sending failed");
     }
@@ -187,9 +194,23 @@ function SendMail({ authHeaders }) {
   return (
     <div>
       <h2>Send Mail</h2>
-      <input type="email" placeholder="Receiver" value={receiver} onChange={(e) => setReceiver(e.target.value)} />
-      <input type="text" placeholder="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} />
-      <textarea placeholder="Body" value={body} onChange={(e) => setBody(e.target.value)}></textarea>
+      <input 
+        type="text" 
+        placeholder="Receivers (comma separated)" 
+        value={receivers} 
+        onChange={(e) => setReceivers(e.target.value)} 
+      />
+      <input 
+        type="text" 
+        placeholder="Subject" 
+        value={subject} 
+        onChange={(e) => setSubject(e.target.value)} 
+      />
+      <textarea 
+        placeholder="Body" 
+        value={body} 
+        onChange={(e) => setBody(e.target.value)} 
+      ></textarea>
       <button onClick={handleSend}>Send</button>
     </div>
   );

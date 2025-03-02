@@ -3,40 +3,35 @@ package utils
 import (
 	"backend/internal/model"
 	"crypto/tls"
-	"fmt"
 	"io"
 	"log"
 	"net/mail"
+	"strings"
 
 	"github.com/emersion/go-imap"
 	"github.com/emersion/go-imap/client"
 	"gorm.io/gorm"
 )
 
-const (
-	imapServer = "imap.yandex.ru:993"
-	emailUser  = "isakov.29072004"
-	emailPass  = "anuptulzrvloszth"
-)
-
 func ReadMailIMAP(db *gorm.DB) error {
-	imapServer := imapServer
-	emailUser := emailUser
-	emailPass := emailPass
-	if emailUser == "" || emailPass == "" {
-		log.Println("IMAP credentials are missing")
-		return fmt.Errorf("IMAP credentials are missing")
-	}
-	c, err := client.DialTLS(imapServer, &tls.Config{})
+	var (
+		imapHost = GetEnv("IMAP_HOST", "")
+		imapUser = GetEnv("IMAP_USER", "")
+		imapPass = GetEnv("MAIL_PASS", "")
+	)
+
+	c, err := client.DialTLS(imapHost, &tls.Config{})
 	if err != nil {
 		log.Println("Failed to connect to IMAP server:", err)
 		return err
 	}
 	defer c.Logout()
-	if err := c.Login(emailUser, emailPass); err != nil {
+
+	if err := c.Login(imapUser, imapPass); err != nil {
 		log.Println("Failed to login to IMAP server:", err)
 		return err
 	}
+
 	mbox, err := c.Select("INBOX", false)
 	if err != nil {
 		log.Println("Failed to select INBOX:", err)
@@ -77,7 +72,19 @@ func ReadMailIMAP(db *gorm.DB) error {
 			header := reader.Header
 			from := header.Get("From")
 			to := header.Get("To")
+			// cc := header.Get("Cc")
 			subject := header.Get("Subject")
+
+			log.Println(from)
+			log.Println(to)
+			// log.Println(cc)
+			log.Println(subject)
+
+			// // Обработка получателей
+			// receivers := parseAddressList(to)
+			// if cc != "" {
+			// 	receivers = append(receivers, parseAddressList(cc)...)
+			// }
 
 			body, err := io.ReadAll(reader.Body)
 			if err != nil {
@@ -86,15 +93,32 @@ func ReadMailIMAP(db *gorm.DB) error {
 			}
 
 			mailRecord := model.Mail{
-				Sender:   from,
-				Receiver: to,
-				Subject:  subject,
-				Body:     string(body),
-				IsRead:   false,
+				Sender:    from,
+				Subject:   subject,
+				Body:      string(body),
+				IsRead:    false,
 			}
+
+			to = (strings.Split(to, " ")[0])
+			to = strings.Trim(to, "\n")
+
+			mailRecord.Receivers.Set(to)
 			db.Create(&mailRecord)
 		}
 	}
 
 	return nil
 }
+
+// func parseAddressList(addressList string) []string {
+// 	var addresses []string
+// 	parsedAddresses, err := mail.ParseAddressList(addressList)
+// 	if err != nil {
+// 		log.Println("Failed to parse address list:", err)
+// 		return addresses
+// 	}
+// 	for _, addr := range parsedAddresses {
+// 		addresses = append(addresses, addr.Address)
+// 	}
+// 	return addresses
+// }

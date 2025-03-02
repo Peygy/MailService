@@ -1,13 +1,14 @@
 package model
 
-import "github.com/jinzhu/gorm"
+import (
+	"github.com/jackc/pgx/pgtype"
+	"github.com/jinzhu/gorm"
+)
 
 type Mail struct {
 	gorm.Model
-	SenderId   int    `gorm:"not null"`
-	Sender     string `gorm:"not null"`
-	ReceiverId int    `gorm:"not null"`
-	Receiver   string `gorm:"not null"`
+	Sender    string       `gorm:"not null"`
+	Receivers pgtype.JSONB `gorm:"type:jsonb;default:'[]';not null"`
 
 	Subject string
 	Body    string
