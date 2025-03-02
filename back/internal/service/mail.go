@@ -14,6 +14,10 @@ import (
 	"gorm.io/gorm"
 )
 
+const (
+	domain = "gomail.kurs"
+)
+
 type (
 	MailService interface {
 		GetInboxMails(c *gin.Context)
@@ -161,10 +165,15 @@ func (ms *mailService) SendMail(c *gin.Context) {
 	}
 	mail.Receivers.Set(mailData.Receivers)
 
-	err := utils.SendMailSMTP(mail)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error sending email through SMTP"})
-		return
+
+	for _, rec := range mailData.Receivers {
+		if !strings.Contains(rec, domain){
+			err := utils.SendMailSMTP(mail)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"message": "Error sending email through SMTP"})
+				return
+			}
+		}
 	}
 
 	if err := ms.db.Create(&mail).Error; err != nil {
