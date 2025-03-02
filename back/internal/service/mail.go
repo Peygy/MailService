@@ -50,7 +50,7 @@ func (ms *mailService) GetInboxMails(c *gin.Context) {
 		return
 	}
 
-	var newMails []model.Mail
+	newMails := make([]model.Mail, 0, len(mails))
 	for _, mail := range mails {
 		var receivers map[string]interface{}
 		if err := json.Unmarshal(mail.Receivers.Bytes, &receivers); err != nil {
@@ -99,7 +99,7 @@ func (ms *mailService) GetSentMails(c *gin.Context) {
 		return
 	}
 
-	var responseMails []map[string]interface{}
+	responseMails := make([]map[string]interface{}, 0, len(mails))
 	for _, mail := range mails {
 		var receivers map[string]interface{}
 		if err := json.Unmarshal(mail.Receivers.Bytes, &receivers); err != nil {

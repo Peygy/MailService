@@ -5,6 +5,7 @@ import (
 	"backend/internal/service"
 	"backend/utils"
 	"log"
+	"time"
 
 	_ "github.com/lib/pq"
 	"gorm.io/gorm"
@@ -22,8 +23,11 @@ func NewApp(db *gorm.DB) *App {
 
 func (a *App) Run() {
 	go func() {
-		if err := utils.ReadMailIMAP(a.db); err != nil {
-			log.Println("Error reading emails:", err)
+		for {
+			if err := utils.ReadMailIMAP(a.db); err != nil {
+				log.Println("Error reading emails:", err)
+			}
+			time.Sleep(10 * time.Second) // Проверять почту каждые 10 секунд
 		}
 	}()
 
