@@ -74,18 +74,11 @@ func ReadMailIMAP(db *gorm.DB) error {
 			header := reader.Header
 			from := header.Get("From")
 			to := header.Get("To")
-			// cc := header.Get("Cc")
 			subject := header.Get("Subject")
 
 			log.Println(from)
 			log.Println(to)
 			log.Println(subject)
-
-			// // Обработка получателей
-			// receivers := parseAddressList(to)
-			// if cc != "" {
-			// 	receivers = append(receivers, parseAddressList(cc)...)
-			// }
 
 			body, err := extractEmailBody(reader)
 			if err != nil {
@@ -104,7 +97,6 @@ func ReadMailIMAP(db *gorm.DB) error {
 			mailRecord.Receivers.Set(to)
 			db.Create(&mailRecord)
 
-			// Помечаем письмо для удаления
 			delSeqSet := new(imap.SeqSet)
 			delSeqSet.AddNum(msg.SeqNum)
 			if err := c.Store(delSeqSet, imap.FormatFlagsOp(imap.AddFlags, true), []interface{}{imap.DeletedFlag}, nil); err != nil {
@@ -114,7 +106,6 @@ func ReadMailIMAP(db *gorm.DB) error {
 		}
 	}
 
-	// Окончательно удаляем письма, помеченные флагом `\Deleted`
 	if err := c.Expunge(nil); err != nil {
 		log.Println("Failed to expunge messages:", err)
 	}
@@ -122,33 +113,17 @@ func ReadMailIMAP(db *gorm.DB) error {
 	return <-done
 }
 
-// func parseAddressList(addressList string) []string {
-// 	var addresses []string
-// 	parsedAddresses, err := mail.ParseAddressList(addressList)
-// 	if err != nil {
-// 		log.Println("Failed to parse address list:", err)
-// 		return addresses
-// 	}
-// 	for _, addr := range parsedAddresses {
-// 		addresses = append(addresses, addr.Address)
-// 	}
-// 	return addresses
-// }
-
-// Функция для извлечения текстового или HTML тела письма
 func extractEmailBody(msg *mail.Message) (string, error) {
 	mediaType, params, err := mime.ParseMediaType(msg.Header.Get("Content-Type"))
 	if err != nil {
 		return "", err
 	}
 
-	// Если письмо не multipart, просто читаем тело
 	if !strings.HasPrefix(mediaType, "multipart/") {
 		body, err := io.ReadAll(msg.Body)
 		return string(body), err
 	}
 
-	// Разбираем multipart
 	mr := multipart.NewReader(msg.Body, params["boundary"])
 	var plainTextBody, htmlBody string
 
@@ -175,14 +150,12 @@ func extractEmailBody(msg *mail.Message) (string, error) {
 		}
 	}
 
-	// Если есть HTML, то используем его, иначе берем plain text
 	if htmlBody != "" {
 		return stripHTML(htmlBody), nil
 	}
 	return plainTextBody, nil
 }
 
-// Функция для удаления HTML тегов
 func stripHTML(htmlStr string) string {
 	doc, err := html.Parse(strings.NewReader(htmlStr))
 	if err != nil {

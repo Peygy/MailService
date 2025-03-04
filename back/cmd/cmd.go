@@ -27,7 +27,7 @@ func (a *App) Run() {
 			if err := utils.ReadMailIMAP(a.db); err != nil {
 				log.Println("Error reading emails:", err)
 			}
-			time.Sleep(10 * time.Second) // Проверять почту каждые 10 секунд
+			time.Sleep(10 * time.Second)
 		}
 	}()
 

@@ -37,7 +37,6 @@ func NewMailService(db *gorm.DB) MailService {
 	}
 }
 
-// Получение входящих писем
 func (ms *mailService) GetInboxMails(c *gin.Context) {
 	userID := c.MustGet("userID").(uint)
 
@@ -86,7 +85,6 @@ func (ms *mailService) GetInboxMails(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"mails": newMails})
 }
 
-// Получение отправленных писем
 func (ms *mailService) GetSentMails(c *gin.Context) {
 	userID := c.MustGet("userID").(uint)
 
@@ -137,7 +135,6 @@ func (ms *mailService) GetSentMails(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"mails": responseMails})
 }
 
-// Отправка письма
 func (ms *mailService) SendMail(c *gin.Context) {
 	userID := c.MustGet("userID").(uint)
 
@@ -184,7 +181,6 @@ func (ms *mailService) SendMail(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"message": "Mail sent successfully"})
 }
 
-// Очистка корзины
 func (ms *mailService) ClearTrash(c *gin.Context) {
 	userID := c.MustGet("userID").(uint)
 
