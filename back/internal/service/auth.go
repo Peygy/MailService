@@ -37,11 +37,6 @@ func (as *authService) RegisterUser(c *gin.Context) {
 		return
 	}
 
-	// if err := utils.IsCorporateEmail(input.Email); err != nil {
-	// 	c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
-	// 	return
-	// }
-
 	user := model.User{
 		Email:    input.Email,
 		Password: input.Password,

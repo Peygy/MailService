@@ -7,16 +7,33 @@ import (
 	"fmt"
 	"log"
 	"net/smtp"
+	"strings"
 
 	"github.com/jordan-wright/email"
 )
 
-func SendMailSMTP(mail model.Mail) error {
+const (
+	domain = "gomail.kurs"
+)
+
+type mailData struct {
+	Receivers []string `json:"receivers"`
+	Subject   string   `json:"subject"`
+	Body      string   `json:"body"`
+}
+
+func SendMailSMTP(mail model.Mail, data mailData) error {
 	var (
 		smtpHost = GetEnv("SMTP_HOST", "")
 		smtpUser = GetEnv("SMTP_USER", "")
 		smtpPass = GetEnv("MAIL_PASS", "")
 	)
+
+	for id, rec := range data.Receivers {
+		if strings.Contains(rec, domain) {
+			data.Receivers = append(data.Receivers[:id], data.Receivers[id+1:]...)
+		}
+	}
 
 	var receivers []string
 	if err := json.Unmarshal(mail.Receivers.Bytes, &receivers); err != nil {

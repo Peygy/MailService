@@ -1,42 +1,188 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate, Navigate } from "react-router-dom";
 import axios from "axios";
+import { styled, createGlobalStyle } from 'styled-components';
 
 const API_URL = "http://localhost:8081/api/v1";
+
+const GlobalStyle = createGlobalStyle`
+  body {
+    background-color: #121212;
+    color: #e0e0e0;
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+  }
+
+  a {
+    color: #bb86fc;
+    text-decoration: none;
+    &:hover {
+      color: #3700b3;
+    }
+  }
+
+  button {
+    background-color: #bb86fc;
+    color: #121212;
+    border: none;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    &:hover {
+      background-color: #3700b3;
+    }
+  }
+
+  input, textarea {
+    background-color: #1e1e1e;
+    color: #e0e0e0;
+    border: 1px solid #bb86fc;
+    padding: 0.5rem;
+    font-size: 1rem;
+    &:focus {
+      outline: none;
+      border-color: #3700b3;
+    }
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    th, td {
+      border: 1px solid #bb86fc;
+      padding: 8px;
+    }
+    th {
+      background-color: #1e1e1e;
+    }
+    tr:nth-child(even) {
+      background-color: #1e1e1e;
+    }
+    tr:hover {
+      background-color: #3700b3; 
+    }
+  }
+`;
+
+const NavBar = styled.nav`
+  background-color: #1e1e1e;
+  padding: 1rem;
+  display: flex;
+  justify-content: space-around;
+  a {
+    color: #bb86fc;
+    text-decoration: none;
+    font-size: 1.2rem;
+    &:hover {
+      color: #3700b3;
+    }
+  }
+  button {
+    background-color: #bb86fc;
+    border: none;
+    padding: 0.5rem 1rem;
+    color: #121212;
+    cursor: pointer;
+    &:hover {
+      background-color: #3700b3;
+    }
+  }
+`;
+
+const Container = styled.div`
+  padding: 2rem;
+  max-width: 800px;
+  margin: 0 auto;
+`;
+
+const Form = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  input, textarea {
+    background-color: #1e1e1e; 
+    color: #e0e0e0; 
+    border: 1px solid #bb86fc;
+    padding: 0.5rem;
+    font-size: 1rem;
+    &:focus {
+      outline: none;
+      border-color: #3700b3; 
+    }
+  }
+  button {
+    background-color: #bb86fc; 
+    color: #121212; 
+    border: none;
+    padding: 0.5rem;
+    font-size: 1rem;
+    cursor: pointer;
+    &:hover {
+      background-color: #3700b3; 
+    }
+  }
+`;
+
+const Table = styled.table`
+  width: 100%;
+  border-collapse: collapse;
+  th, td {
+    border: 1px solid #bb86fc; /* Фиолетовая рамка */
+    padding: 8px;
+  }
+  th {
+    background-color: #1e1e1e; /* Темный фон для заголовков */
+  }
+  tr:nth-child(even) {
+    background-color: #1e1e1e; /* Темный фон для четных строк */
+  }
+  tr:hover {
+    background-color: #3700b3; /* Темно-фиолетовый при наведении */
+  }
+`;
 
 function App() {
   const [auth, setAuth] = useState(() => {
     const storedAuth = localStorage.getItem('auth');
-    return storedAuth ? storedAuth : null;  // Храним только строку, а не объект
+    return storedAuth ? storedAuth : null;
   });
 
   const login = (username, password) => {
-    const encoded = btoa(`${username}:${password}`);  // Закодированная строка
+    const encoded = btoa(`${username}:${password}`);
     setAuth(encoded);
-    localStorage.setItem('auth', encoded);  // Сохраняем только строку
+    localStorage.setItem('auth', encoded);
+  };
+
+  const logout = () => {
+    setAuth(null);
+    localStorage.removeItem('auth');
   };
 
   const authHeaders = auth ? { Authorization: `Basic ${auth}` } : {};
 
   return (
     <Router>
-      <nav>
+      <GlobalStyle />
+      <NavBar>
         <Link to="/login">Login</Link>
         <Link to="/register">Register</Link>
         <Link to="/inbox">Inbox</Link>
         <Link to="/sent">Sent</Link>
         <Link to="/send">SendMail</Link>
         <Link to="/admin">Admin</Link>
-      </nav>
-      <Routes>
-        <Route path="/login" element={<Login onLogin={login} />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/inbox" element={auth ? <Inbox authHeaders={authHeaders} /> : <Navigate to="/login" />} />
-        <Route path="/sent" element={auth ? <Sent authHeaders={authHeaders} /> : <Navigate to="/login" />} />
-        <Route path="/send" element={auth ? <SendMail authHeaders={authHeaders} /> : <Navigate to="/login" />} />
-        <Route path="/admin" element={auth ? <Admin authHeaders={authHeaders} /> : <Navigate to="/login" />} />
-        <Route path="*" element={<Navigate to="/login" />} />
-      </Routes>
+        {auth && <button onClick={logout}>Logout</button>}
+      </NavBar>
+      <Container>
+        <Routes>
+          <Route path="/login" element={<Login onLogin={login} />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/inbox" element={auth ? <Inbox authHeaders={authHeaders} /> : <Navigate to="/login" />} />
+          <Route path="/sent" element={auth ? <Sent authHeaders={authHeaders} /> : <Navigate to="/login" />} />
+          <Route path="/send" element={auth ? <SendMail authHeaders={authHeaders} /> : <Navigate to="/login" />} />
+          <Route path="/admin" element={auth ? <Admin authHeaders={authHeaders} /> : <Navigate to="/login" />} />
+          <Route path="*" element={<Navigate to="/login" />} />
+        </Routes>
+      </Container>
     </Router>
   );
 }
@@ -49,7 +195,7 @@ function Login({ onLogin }) {
   const handleLogin = async () => {
     try {
       await axios.post(`${API_URL}/login`, { email, password });
-      onLogin(email, password);  // Сохраняем Basic Auth
+      onLogin(email, password);
       navigate("/inbox");
     } catch (err) {
       alert("Login failed");
@@ -57,12 +203,12 @@ function Login({ onLogin }) {
   };
 
   return (
-    <div>
+    <Form>
       <h2>Login</h2>
       <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
       <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
       <button onClick={handleLogin}>Login</button>
-    </div>
+    </Form>
   );
 }
 
@@ -80,12 +226,12 @@ function Register() {
   };
 
   return (
-    <div>
+    <Form>
       <h2>Register</h2>
       <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
       <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
       <button onClick={handleRegister}>Register</button>
-    </div>
+    </Form>
   );
 }
 
@@ -104,7 +250,7 @@ function Inbox({ authHeaders }) {
       {mails.length === 0 ? (
         <p>No emails in inbox</p>
       ) : (
-        <table border="1" cellPadding="5">
+        <Table>
           <thead>
             <tr>
               <th>Sender</th>
@@ -123,7 +269,7 @@ function Inbox({ authHeaders }) {
               </tr>
             ))}
           </tbody>
-        </table>
+        </Table>
       )}
     </div>
   );
@@ -144,7 +290,7 @@ function Sent({ authHeaders }) {
       {mails.length === 0 ? (
         <p>No sent emails</p>
       ) : (
-        <table border="1" cellPadding="5">
+        <Table>
           <thead>
             <tr>
               <th>Receivers</th>
@@ -163,12 +309,11 @@ function Sent({ authHeaders }) {
               </tr>
             ))}
           </tbody>
-        </table>
+        </Table>
       )}
     </div>
   );
 }
-
 
 function SendMail({ authHeaders }) {
   const [receivers, setReceivers] = useState("");
@@ -176,13 +321,11 @@ function SendMail({ authHeaders }) {
   const [body, setBody] = useState("");
 
   const handleSend = async () => {
-    // Разделяем введенные email-адреса по запятой и удаляем лишние пробелы
     const receiverList = receivers.split(',').map(email => email.trim());
 
     try {
       await axios.post(`${API_URL}/mail/send`, { receivers: receiverList, subject, body }, { headers: authHeaders });
       alert("Mail sent");
-      // Очищаем поля после успешной отправки
       setReceivers("");
       setSubject("");
       setBody("");
@@ -192,7 +335,7 @@ function SendMail({ authHeaders }) {
   };
 
   return (
-    <div>
+    <Form>
       <h2>Send Mail</h2>
       <input 
         type="text" 
@@ -212,23 +355,27 @@ function SendMail({ authHeaders }) {
         onChange={(e) => setBody(e.target.value)} 
       ></textarea>
       <button onClick={handleSend}>Send</button>
-    </div>
+    </Form>
   );
 }
 
 function Admin({ authHeaders }) {
   const [users, setUsers] = useState([]);
+  const isMounted = useRef(false);
 
   useEffect(() => {
-    axios.get(`${API_URL}/admin/users`, { headers: authHeaders })
-      .then((res) => setUsers(res.data))
-      .catch(() => alert("Failed to load users"));
+    if (!isMounted.current && authHeaders.Authorization) {
+      isMounted.current = true;
+      axios.get(`${API_URL}/admin/users`, { headers: authHeaders })
+        .then((res) => setUsers(res.data))
+        .catch(() => alert("Failed to load users"));
+    }
   }, [authHeaders]);
 
   const handleDelete = async (id) => {
     try {
       await axios.delete(`${API_URL}/admin/users/${id}`, { headers: authHeaders });
-      setUsers(users.filter((user) => user.id !== id));
+      setUsers(users.filter((user) => user.Id !== id));
     } catch (err) {
       alert("Failed to delete user");
     }
@@ -239,7 +386,7 @@ function Admin({ authHeaders }) {
       <h2>Admin Panel</h2>
       <ul>
         {users.map((user) => (
-          <li key={user.id}>{user.email} <button onClick={() => handleDelete(user.id)}>Delete</button></li>
+          <li key={user.Id}>{user.Email} - {user.Role} <button onClick={() => handleDelete(user.Id)}>Delete</button></li>
         ))}
       </ul>
     </div>

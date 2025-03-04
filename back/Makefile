@@ -5,7 +5,7 @@ build:
 	$(MAKE) docker
 	$(MAKE) clean
 	go build -o $(BIN) ./main.go 
-	go run $(BIN)
+	go run $(BIN) -dev
 
 .PHONY: docker
 docker:

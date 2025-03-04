@@ -27,7 +27,7 @@ func NewAdminService(db *gorm.DB) AdminService {
 
 func (as *adminService) GetAllUsers(c *gin.Context) {
 	var users []model.User
-	if err := as.db.Find(&users).Error; err != nil {
+	if err := as.db.Where("role <> ?", model.RoleAdmin).Find(&users).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error fetching users"})
 		return
 	}
@@ -37,7 +37,7 @@ func (as *adminService) GetAllUsers(c *gin.Context) {
 func (as *adminService) DeleteUser(c *gin.Context) {
 	userID := c.Param("id")
 
-	if err := as.db.Delete(&model.User{}, userID).Error; err != nil {
+	if err := as.db.Where("id = ?", userID).Delete(&model.User{}).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error deleting user"})
 		return
 	}
