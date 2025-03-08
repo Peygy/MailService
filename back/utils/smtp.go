@@ -3,7 +3,7 @@ package utils
 import (
 	"backend/internal/model"
 	"crypto/tls"
-	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/smtp"
@@ -16,38 +16,29 @@ const (
 	domain = "gomail.kurs"
 )
 
-type mailData struct {
-	Receivers []string `json:"receivers"`
-	Subject   string   `json:"subject"`
-	Body      string   `json:"body"`
-}
-
-func SendMailSMTP(mail model.Mail, data mailData) error {
+func SendMailSMTP(mail model.Mail, recs []string) error {
 	var (
 		smtpHost = GetEnv("SMTP_HOST", "")
 		smtpUser = GetEnv("SMTP_USER", "")
 		smtpPass = GetEnv("MAIL_PASS", "")
 	)
 
-	var filteredReceivers []string
-	for _, rec := range data.Receivers {
+	var filtered []string
+	for _, rec := range recs {
 		if !strings.Contains(rec, domain) {
-			filteredReceivers = append(filteredReceivers, rec)
+			filtered = append(filtered, rec)
 		}
 	}
-	data.Receivers = filteredReceivers
-	if len(data.Receivers) <= 0 {
-		return nil
-	}
 
-	var receivers []string
-	if err := json.Unmarshal(mail.Receivers.Bytes, &receivers); err != nil {
+	if len(filtered) <= 0 {
+		err := errors.New("receivers are empty")
+		log.Println("Receivers are empty:", err)
 		return err
 	}
 
 	e := email.NewEmail()
 	e.From = fmt.Sprintf("\"%s\" <%s>", mail.Sender, smtpUser)
-	e.To = receivers
+	e.To = filtered
 	e.Subject = fmt.Sprintf("Письмо из GoMail! %s", mail.Subject)
 	e.Text = []byte(mail.Body)
 

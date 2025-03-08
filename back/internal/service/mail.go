@@ -5,6 +5,7 @@ import (
 	"backend/utils"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"slices"
@@ -101,7 +102,7 @@ func (ms *mailService) GetSentMails(c *gin.Context) {
 	for _, mail := range mails {
 		var receivers map[string]interface{}
 		if err := json.Unmarshal(mail.Receivers.Bytes, &receivers); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"message": "Error decoding receivers"})
+			c.JSON(http.StatusInternalServerError, gin.H{"message": fmt.Sprintf("Error decoding receivers1: %v", err)})
 			return
 		}
 
@@ -114,7 +115,7 @@ func (ms *mailService) GetSentMails(c *gin.Context) {
 
 		var recs []string
 		if err := json.Unmarshal(decodedBytes, &recs); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"message": "Error decoding receivers"})
+			c.JSON(http.StatusInternalServerError, gin.H{"message": fmt.Sprintf("Error decoding receivers2: %v", err)})
 			return
 		}
 
@@ -156,12 +157,12 @@ func (ms *mailService) SendMail(c *gin.Context) {
 		Subject: mailData.Subject,
 		Body:    mailData.Body,
 	}
-	mail.Receivers.Set(mailData.Receivers)
 
-	if err := utils.SendMailSMTP(mail, mailData); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error sending email through SMTP"})
+	if err := utils.SendMailSMTP(mail, mailData.Receivers); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": fmt.Sprintf("Error sending email through SMTP: %v", err)})
 		return
 	}
+	mail.Receivers.Set(mailData.Receivers)
 
 	if err := ms.db.Create(&mail).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error sending mail"})
