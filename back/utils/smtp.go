@@ -29,10 +29,15 @@ func SendMailSMTP(mail model.Mail, data mailData) error {
 		smtpPass = GetEnv("MAIL_PASS", "")
 	)
 
-	for id, rec := range data.Receivers {
-		if strings.Contains(rec, domain) {
-			data.Receivers = append(data.Receivers[:id], data.Receivers[id+1:]...)
+	var filteredReceivers []string
+	for _, rec := range data.Receivers {
+		if !strings.Contains(rec, domain) {
+			filteredReceivers = append(filteredReceivers, rec)
 		}
+	}
+	data.Receivers = filteredReceivers
+	if len(data.Receivers) <= 0 {
+		return nil
 	}
 
 	var receivers []string

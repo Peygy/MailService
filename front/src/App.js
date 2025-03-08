@@ -64,19 +64,51 @@ const GlobalStyle = createGlobalStyle`
   }
 `;
 
-const NavBar = styled.nav`
+const NotificationContainer = styled.div`
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background-color: #ff4444;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 5px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 1000;
+`;
+
+const CloseButton = styled.button`
+  background: none;
+  border: none;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+`;
+
+const Notification = ({ message, onClose }) => {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onClose();
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  return (
+    <NotificationContainer>
+      <span>{message}</span>
+      <CloseButton onClick={onClose}>×</CloseButton>
+    </NotificationContainer>
+  );
+};
+
+const Header = styled.header`
   background-color: #1e1e1e;
   padding: 1rem;
   display: flex;
-  justify-content: space-around;
-  a {
-    color: #bb86fc;
-    text-decoration: none;
-    font-size: 1.2rem;
-    &:hover {
-      color: #3700b3;
-    }
-  }
+  justify-content: flex-end;
+  align-items: center;
   button {
     background-color: #bb86fc;
     border: none;
@@ -89,8 +121,35 @@ const NavBar = styled.nav`
   }
 `;
 
-const Container = styled.div`
+const Layout = styled.div`
+  display: flex;
+  height: calc(100vh - 60px);
+`;
+
+const SideNav = styled.nav`
+  background-color: #1e1e1e;
+  width: 200px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  a {
+    color: #bb86fc;
+    text-decoration: none;
+    font-size: 1.2rem;
+    &:hover {
+      color: #3700b3;
+    }
+  }
+`;
+
+const MainContent = styled.div`
+  flex: 1;
   padding: 2rem;
+  overflow-y: auto;
+`;
+
+const Container = styled.div`
   max-width: 800px;
   margin: 0 auto;
 `;
@@ -127,17 +186,17 @@ const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
   th, td {
-    border: 1px solid #bb86fc; /* Фиолетовая рамка */
+    border: 1px solid #bb86fc;
     padding: 8px;
   }
   th {
-    background-color: #1e1e1e; /* Темный фон для заголовков */
+    background-color: #1e1e1e;
   }
   tr:nth-child(even) {
-    background-color: #1e1e1e; /* Темный фон для четных строк */
+    background-color: #1e1e1e;
   }
   tr:hover {
-    background-color: #3700b3; /* Темно-фиолетовый при наведении */
+    background-color: #3700b3;
   }
 `;
 
@@ -146,6 +205,15 @@ function App() {
     const storedAuth = localStorage.getItem('auth');
     return storedAuth ? storedAuth : null;
   });
+  const [notification, setNotification] = useState(null);
+
+  const showNotification = (message) => {
+    setNotification(message);
+  };
+
+  const closeNotification = () => {
+    setNotification(null);
+  };
 
   const login = (username, password) => {
     const encoded = btoa(`${username}:${password}`);
@@ -160,36 +228,62 @@ function App() {
 
   const authHeaders = auth ? { Authorization: `Basic ${auth}` } : {};
 
+  const getEmailFromAuth = () => {
+    if (!auth) return null;
+    const decoded = atob(auth);
+    return decoded.split(':')[0];
+  };
+
+  const email = getEmailFromAuth();
+
+  const isAdmin = email && email.includes('@admin.gomail.kurs');
+
   return (
     <Router>
       <GlobalStyle />
-      <NavBar>
-        <Link to="/login">Login</Link>
-        <Link to="/register">Register</Link>
-        <Link to="/inbox">Inbox</Link>
-        <Link to="/sent">Sent</Link>
-        <Link to="/send">SendMail</Link>
-        <Link to="/admin">Admin</Link>
-        {auth && <button onClick={logout}>Logout</button>}
-      </NavBar>
-      <Container>
-        <Routes>
-          <Route path="/login" element={<Login onLogin={login} />} />
-          <Route path="/register" element={<Register />} />
-          <Route path="/inbox" element={auth ? <Inbox authHeaders={authHeaders} /> : <Navigate to="/login" />} />
-          <Route path="/sent" element={auth ? <Sent authHeaders={authHeaders} /> : <Navigate to="/login" />} />
-          <Route path="/send" element={auth ? <SendMail authHeaders={authHeaders} /> : <Navigate to="/login" />} />
-          <Route path="/admin" element={auth ? <Admin authHeaders={authHeaders} /> : <Navigate to="/login" />} />
-          <Route path="*" element={<Navigate to="/login" />} />
-        </Routes>
-      </Container>
+      {notification && <Notification message={notification} onClose={closeNotification} />}
+      {auth ? (
+        <>
+          <Header>
+            <button onClick={logout}>Выйти</button>
+          </Header>
+          <Layout>
+            <SideNav>
+              <Link to="/inbox">Входящие</Link>
+              <Link to="/sent">Отправленные</Link>
+              <Link to="/send">Отправить письмо</Link>
+              {isAdmin && <Link to="/admin">Админ</Link>}
+            </SideNav>
+            <MainContent>
+              <Container>
+                <Routes>
+                  <Route path="/inbox" element={<Inbox authHeaders={authHeaders} showNotification={showNotification} />} />
+                  <Route path="/sent" element={<Sent authHeaders={authHeaders} showNotification={showNotification} />} />
+                  <Route path="/send" element={<SendMail authHeaders={authHeaders} showNotification={showNotification} />} />
+                  {isAdmin && <Route path="/admin" element={<Admin authHeaders={authHeaders} showNotification={showNotification} />}/>}
+                  <Route path="*" element={<Navigate to="/inbox" />} />
+                </Routes>
+              </Container>
+            </MainContent>
+          </Layout>
+        </>
+      ) : (
+        <Container>
+          <Routes>
+            <Route path="/login" element={<Login onLogin={login} showNotification={showNotification} />} />
+            <Route path="/register" element={<Register onReg={login} showNotification={showNotification} />} />
+            <Route path="*" element={<Navigate to="/login" />} />
+          </Routes>
+        </Container>
+      )}
     </Router>
   );
 }
 
-function Login({ onLogin }) {
+function Login({ onLogin, showNotification }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
   const handleLogin = async () => {
@@ -198,65 +292,160 @@ function Login({ onLogin }) {
       onLogin(email, password);
       navigate("/inbox");
     } catch (err) {
-      alert("Login failed");
+      showNotification(err.response?.data?.message || "Ошибка входа");
     }
   };
 
   return (
     <Form>
-      <h2>Login</h2>
-      <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
-      <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
-      <button onClick={handleLogin}>Login</button>
+      <h2>Вход</h2>
+      <input
+        type="email"
+        placeholder="Email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+      />
+      <div style={{ position: "relative", width: "100%" }}>
+        <input
+          type={showPassword ? "text" : "password"}
+          placeholder="Пароль"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          style={{ width: "98%" }}
+        />
+        <button
+          onClick={() => setShowPassword(!showPassword)}
+          style={{
+            position: "absolute",
+            right: "10px",
+            top: "50%",
+            transform: "translateY(-50%)",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            color: "#bb86fc",
+            padding: "0",
+          }}
+        >
+          {showPassword ? "👁️" : "👁️‍🗨️"}
+        </button>
+      </div>
+      <button onClick={handleLogin}>Войти</button>
+      <p>
+        Нет аккаунта? <Link to="/register">Регистрация</Link>
+      </p>
     </Form>
   );
 }
 
-function Register() {
+function Register({ onReg, showNotification }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const navigate = useNavigate();
+
+  const validateEmail = (email) => {
+    const regex = /^[^@]+@gomail\.kurs$/;
+    return regex.test(email);
+  };
 
   const handleRegister = async () => {
+    setError("");
+
+    if (!validateEmail(email)) {
+      setError("Email должен содержать один @ и заканчиваться на gomail.kurs");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError("Пароли не совпадают");
+      return;
+    }
+
     try {
       await axios.post(`${API_URL}/register`, { email, password });
-      alert("Registration successful");
+      onReg(email, password);
+      navigate("/inbox");
     } catch (err) {
-      alert("Registration failed");
+      showNotification(err.response?.data?.message || "Ошибка регистрации");
     }
   };
 
   return (
     <Form>
-      <h2>Register</h2>
-      <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
-      <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} />
-      <button onClick={handleRegister}>Register</button>
+      <h2>Регистрация</h2>
+      <input
+        type="email"
+        placeholder="Email"
+        value={email}
+        onChange={(e) => {
+          setEmail(e.target.value);
+          setError("");
+        }}
+      />
+      {error && <p style={{ color: "red" }}>{error}</p>}
+      <div style={{ position: "relative" }}>
+        <input
+          type={showPassword ? "text" : "password"}
+          placeholder="Пароль"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          style={{ width: "98%" }}
+        />
+        <button
+          onClick={() => setShowPassword(!showPassword)}
+          style={{
+            position: "absolute",
+            right: "10px",
+            top: "50%",
+            transform: "translateY(-50%)",
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            color: "#bb86fc",
+          }}
+        >
+          {showPassword ? "👁️" : "👁️‍🗨️"}
+        </button>
+      </div>
+      <input
+        type={showPassword ? "text" : "password"}
+        placeholder="Подтвердите пароль"
+        value={confirmPassword}
+        onChange={(e) => setConfirmPassword(e.target.value)}
+      />
+      <button onClick={handleRegister}>Регистрация</button>
+      <p>
+        Уже есть аккаунт? <Link to="/login">Войти</Link>
+      </p>
     </Form>
   );
 }
 
-function Inbox({ authHeaders }) {
+function Inbox({ authHeaders, showNotification }) {
   const [mails, setMails] = useState([]);
 
   useEffect(() => {
     axios.get(`${API_URL}/mail/inbox`, { headers: authHeaders })
       .then((res) => setMails(res.data.mails))
-      .catch(() => alert("Failed to load inbox"));
-  }, [authHeaders]);
+      .catch(() => showNotification("Ошибка загрузки входящих"));
+  }, [authHeaders, showNotification]);
 
   return (
     <div>
-      <h2>Inbox</h2>
+      <h2>Входящие</h2>
       {mails.length === 0 ? (
-        <p>No emails in inbox</p>
+        <p>Нет писем</p>
       ) : (
         <Table>
           <thead>
             <tr>
-              <th>Sender</th>
-              <th>Subject</th>
-              <th>Body</th>
-              <th>Received At</th>
+              <th>Отправитель</th>
+              <th>Тема</th>
+              <th>Содержание</th>
+              <th>Дата получения</th>
             </tr>
           </thead>
           <tbody>
@@ -275,28 +464,28 @@ function Inbox({ authHeaders }) {
   );
 }
 
-function Sent({ authHeaders }) {
+function Sent({ authHeaders, showNotification }) {
   const [mails, setMails] = useState([]);
 
   useEffect(() => {
     axios.get(`${API_URL}/mail/sent`, { headers: authHeaders })
       .then((res) => setMails(res.data.mails))
-      .catch(() => alert("Failed to load sent mails"));
-  }, [authHeaders]);
+      .catch(() => showNotification("Ошибка загрузки отправленных"));
+  }, [authHeaders, showNotification]);
 
   return (
     <div>
-      <h2>Sent Mails</h2>
+      <h2>Отправленные</h2>
       {mails.length === 0 ? (
-        <p>No sent emails</p>
+        <p>Нет отправленных писем</p>
       ) : (
         <Table>
           <thead>
             <tr>
-              <th>Receivers</th>
-              <th>Subject</th>
-              <th>Body</th>
-              <th>Sent At</th>
+              <th>Получатели</th>
+              <th>Тема</th>
+              <th>Содержание</th>
+              <th>Дата отправки</th>
             </tr>
           </thead>
           <tbody>
@@ -315,7 +504,7 @@ function Sent({ authHeaders }) {
   );
 }
 
-function SendMail({ authHeaders }) {
+function SendMail({ authHeaders, showNotification }) {
   const [receivers, setReceivers] = useState("");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
@@ -325,41 +514,40 @@ function SendMail({ authHeaders }) {
 
     try {
       await axios.post(`${API_URL}/mail/send`, { receivers: receiverList, subject, body }, { headers: authHeaders });
-      alert("Mail sent");
       setReceivers("");
       setSubject("");
       setBody("");
     } catch (err) {
-      alert("Sending failed");
+      showNotification(err.response?.data?.message || "Ошибка отправки");
     }
   };
 
   return (
     <Form>
-      <h2>Send Mail</h2>
+      <h2>Отправить письмо</h2>
       <input 
         type="text" 
-        placeholder="Receivers (comma separated)" 
+        placeholder="Получатели (через запятую)" 
         value={receivers} 
         onChange={(e) => setReceivers(e.target.value)} 
       />
       <input 
         type="text" 
-        placeholder="Subject" 
+        placeholder="Тема" 
         value={subject} 
         onChange={(e) => setSubject(e.target.value)} 
       />
       <textarea 
-        placeholder="Body" 
+        placeholder="Содержание" 
         value={body} 
         onChange={(e) => setBody(e.target.value)} 
       ></textarea>
-      <button onClick={handleSend}>Send</button>
+      <button onClick={handleSend}>Отправить</button>
     </Form>
   );
 }
 
-function Admin({ authHeaders }) {
+function Admin({ authHeaders, showNotification }) {
   const [users, setUsers] = useState([]);
   const isMounted = useRef(false);
 
@@ -368,25 +556,25 @@ function Admin({ authHeaders }) {
       isMounted.current = true;
       axios.get(`${API_URL}/admin/users`, { headers: authHeaders })
         .then((res) => setUsers(res.data))
-        .catch(() => alert("Failed to load users"));
+        .catch(() => showNotification("Ошибка загрузки пользователей"));
     }
-  }, [authHeaders]);
+  }, [authHeaders, showNotification]);
 
   const handleDelete = async (id) => {
     try {
       await axios.delete(`${API_URL}/admin/users/${id}`, { headers: authHeaders });
       setUsers(users.filter((user) => user.Id !== id));
     } catch (err) {
-      alert("Failed to delete user");
+      showNotification(err.response?.data?.message || "Ошибка удаления пользователя");
     }
   };
 
   return (
     <div>
-      <h2>Admin Panel</h2>
+      <h2>Панель администратора</h2>
       <ul>
         {users.map((user) => (
-          <li key={user.Id}>{user.Email} - {user.Role} <button onClick={() => handleDelete(user.Id)}>Delete</button></li>
+          <li key={user.Id}>{user.Email} - {user.Role} <button onClick={() => handleDelete(user.Id)}>Удалить</button></li>
         ))}
       </ul>
     </div>

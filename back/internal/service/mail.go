@@ -168,7 +168,7 @@ func (ms *mailService) SendMail(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"message": "Mail sent successfully"})
+	c.JSON(http.StatusCreated, gin.H{})
 }
 
 func (ms *mailService) ClearTrash(c *gin.Context) {
@@ -186,5 +186,5 @@ func (ms *mailService) ClearTrash(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Trash cleared successfully"})
+	c.JSON(http.StatusOK, gin.H{})
 }

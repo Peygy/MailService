@@ -35,7 +35,7 @@ func init() {
 		devRun()
 	} else {
 		db.AutoMigrate(&model.User{}, &model.Mail{})
-		log.Println("Database migration completed!")
+		log.Println("Database migration completed")
 	}
 }
 
@@ -56,7 +56,7 @@ func devRun() {
 		{Email: "test1@gomail.kurs", Password: "12344", Role: model.RoleUser},
 		{Email: "test2@gomail.kurs", Password: "12344", Role: model.RoleUser},
 		{Email: "test3@gomail.kurs", Password: "12344", Role: model.RoleUser},
-		{Email: "admin@gomail.kurs", Password: "12344adm", Role: model.RoleAdmin},
+		{Email: "admin@admin.gomail.kurs", Password: "12344adm", Role: model.RoleAdmin},
 	}
 
 	for _, user := range users {

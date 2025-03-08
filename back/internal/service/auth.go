@@ -37,18 +37,31 @@ func (as *authService) RegisterUser(c *gin.Context) {
 		return
 	}
 
+	var exists bool
+	if as.db.Model(&model.User{}).Select("count(*) > 0").Where("email = ?", input.Email).Find(&exists); exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "User already exists with this email address"})
+		return
+	}
+
 	user := model.User{
 		Email:    input.Email,
 		Password: input.Password,
 		Role:     model.RoleUser,
 	}
 
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to hash password for user"})
+		return
+	}
+	user.Password = string(hashedPassword)
+
 	if err := as.db.Create(&user).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error creating user"})
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"message": "User registered successfully"})
+	c.JSON(http.StatusCreated, gin.H{})
 }
 
 func (as *authService) Login(c *gin.Context) {
@@ -73,5 +86,5 @@ func (as *authService) Login(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Login successful"})
+	c.JSON(http.StatusOK, gin.H{})
 }
