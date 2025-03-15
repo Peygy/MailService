@@ -33,7 +33,9 @@ func InitRouter(services service.Service, basicMw *utils.BasicAuthMiddleware,
 			mail.GET("/inbox", services.MailService.GetInboxMails)
 			mail.GET("/sent", services.MailService.GetSentMails)
 			mail.POST("/send", services.MailService.SendMail)
-			mail.DELETE("/trash", services.MailService.ClearTrash)
+			mail.POST("/trash", services.MailService.GetTrash)
+			mail.POST("/:id/archive", services.MailService.ArchiveMail)
+			mail.DELETE("/:id/delete", services.MailService.DeleteMail)
 		}
 
 		admin := api.Group("/admin", basicMw.Middleware(), roleMw.Middleware(model.RoleAdmin))

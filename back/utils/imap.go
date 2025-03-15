@@ -76,10 +76,6 @@ func ReadMailIMAP(db *gorm.DB) error {
 			to := header.Get("To")
 			subject := header.Get("Subject")
 
-			log.Println(from)
-			log.Println(to)
-			log.Println(subject)
-
 			body, err := extractEmailBody(reader)
 			if err != nil {
 				log.Println("Failed to extract mail body:", err)
@@ -90,7 +86,6 @@ func ReadMailIMAP(db *gorm.DB) error {
 				Sender:  from,
 				Subject: subject,
 				Body:    string(body),
-				IsRead:  false,
 			}
 
 			to = strings.TrimSpace(strings.Split(to, " ")[0])

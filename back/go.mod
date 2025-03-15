@@ -11,6 +11,7 @@ require (
 require (
 	github.com/emersion/go-sasl v0.0.0-20200509203442-7bfe0ed36a21 // indirect
 	github.com/joho/godotenv v1.5.1 // indirect
+	github.com/kyroy/go-slices v0.0.0-20180811151148-1efdd982a071 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 )
 

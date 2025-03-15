@@ -9,9 +9,11 @@ import (
 	"log"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/kyroy/go-slices/int64s"
 	"gorm.io/gorm"
 )
 
@@ -20,7 +22,9 @@ type (
 		GetInboxMails(c *gin.Context)
 		GetSentMails(c *gin.Context)
 		SendMail(c *gin.Context)
-		ClearTrash(c *gin.Context)
+		GetTrash(c *gin.Context)
+		ArchiveMail(c *gin.Context)
+		DeleteMail(c *gin.Context)
 	}
 
 	mailService struct {
@@ -44,14 +48,17 @@ func (ms *mailService) GetInboxMails(c *gin.Context) {
 	}
 
 	var mails []model.Mail
-	err := ms.db.Find(&mails).Error
-	if err != nil {
+	if err := ms.db.Find(&mails).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error fetching mails"})
 		return
 	}
 
 	newMails := make([]model.Mail, 0, len(mails))
 	for _, mail := range mails {
+		if check, err := ms.checkEmailStat(userID, mail.ID); err != nil || !check {
+			continue
+		}
+
 		var receivers map[string]interface{}
 		if err := json.Unmarshal(mail.Receivers.Bytes, &receivers); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"message": "Error decoding receivers 1"})
@@ -100,6 +107,10 @@ func (ms *mailService) GetSentMails(c *gin.Context) {
 
 	responseMails := make([]map[string]interface{}, 0, len(mails))
 	for _, mail := range mails {
+		if check, err := ms.checkEmailStat(userID, mail.ID); err != nil || !check {
+			continue
+		}
+
 		var receivers map[string]interface{}
 		if err := json.Unmarshal(mail.Receivers.Bytes, &receivers); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"message": fmt.Sprintf("Error decoding receivers1: %v", err)})
@@ -172,20 +183,80 @@ func (ms *mailService) SendMail(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{})
 }
 
-func (ms *mailService) ClearTrash(c *gin.Context) {
+func (ms *mailService) GetTrash(c *gin.Context) {
 	userID := c.MustGet("userID").(uint)
 
-	var user model.User
-	if err := ms.db.Where("id = ?", userID).First(&user).Error; err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"message": "Invalid credentials"})
+	var tr model.Trash
+	if err := ms.db.Where("userId = ?", userID).First(&tr).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Archived mails not found"})
 		return
 	}
 
-	err := ms.db.Where("sender = ? AND is_deleted = true", user.Email).Delete(&model.Mail{}).Error
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error clearing trash"})
+	c.JSON(http.StatusOK, gin.H{"mails": tr.Archived})
+}
+
+func (ms *mailService) ArchiveMail(c *gin.Context) {
+	userID := c.MustGet("userID").(uint)
+	mailID, _ := strconv.Atoi(c.Param("id"))
+
+	var tr model.Trash
+	if err := ms.db.Where("userId = ?", userID).First(&tr).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Archived mails not found"})
+		return
+	}
+
+	if err := ms.db.Model(&model.Trash{}).
+		Where("userId = ?", userID).
+		Update("archived", append(tr.Archived, int64(mailID))).Error; err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid mailID"})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{})
+}
+
+func (ms *mailService) DeleteMail(c *gin.Context) {
+	userID := c.MustGet("userID").(uint)
+	mailID, _ := strconv.Atoi(c.Param("id"))
+
+	var tr model.Trash
+	if err := ms.db.Where("userId = ?", userID).First(&tr).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Archived mails not found"})
+		return
+	}
+
+	mailIdx := int64s.IndexOf(tr.Archived, int64(mailID))
+	if err := ms.db.Model(&model.Trash{}).
+		Update("archived", append(tr.Archived[:mailIdx], tr.Archived[mailIdx+1:]...)).
+		Where("userId = ?", userID).Error; err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid mailID"})
+		return
+	}
+
+	if err := ms.db.Model(&model.Trash{}).
+		Update("deleted", append(tr.Deleted, int64(mailID))).
+		Where("userId = ?", userID).Error; err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid mailID"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{})
+}
+
+// Check is mail archide or deleted
+func (ms *mailService) checkEmailStat(userID, mailID uint) (bool, error) {
+	var tr model.Trash
+	if err := ms.db.Model(&model.Trash{}).Where("userId = ?", userID).First(&tr).Error; err != nil {
+		return false, err
+	}
+
+	if int64s.Contains(tr.Archived, int64(mailID)) {
+		log.Printf("mails %d is archived", mailID)
+		return false, nil
+	} else if int64s.Contains(tr.Deleted, int64(mailID)) {
+		log.Printf("mails %d is deleted", mailID)
+		return false, nil
+	}
+
+	return true, nil
 }

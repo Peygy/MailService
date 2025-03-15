@@ -60,6 +60,10 @@ func (as *authService) RegisterUser(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error creating user"})
 		return
 	}
+	if err := as.db.Create(&model.Trash{UserId: user.Id}); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error creating trash"})
+		return
+	}
 
 	c.JSON(http.StatusCreated, gin.H{})
 }

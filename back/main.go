@@ -34,7 +34,7 @@ func init() {
 	if *devFlag {
 		devRun()
 	} else {
-		db.AutoMigrate(&model.User{}, &model.Mail{})
+		db.AutoMigrate(&model.User{}, &model.Mail{}, &model.Trash{})
 		log.Println("Database migration completed")
 	}
 }
@@ -45,10 +45,10 @@ func main() {
 }
 
 func devRun() {
-	if err := db.Migrator().DropTable(&model.User{}, &model.Mail{}); err != nil {
+	if err := db.Migrator().DropTable(&model.User{}, &model.Mail{}, &model.Trash{}); err != nil {
 		log.Fatal("Failed to drop tables:", err)
 	}
-	if err := db.AutoMigrate(&model.User{}, &model.Mail{}); err != nil {
+	if err := db.AutoMigrate(&model.User{}, &model.Mail{}, &model.Trash{}); err != nil {
 		log.Fatal("Failed to migrate tables:", err)
 	}
 
@@ -71,6 +71,10 @@ func devRun() {
 			log.Printf("Failed to create user %s: %v", user.Email, err)
 		} else {
 			log.Printf("User %s created successfully", user.Email)
+		}
+
+		if err := db.Create(&model.Trash{UserId: user.Id}); err != nil {
+			log.Printf("Failed to create trash for user %s: %v", user.Email, err)
 		}
 	}
 }
