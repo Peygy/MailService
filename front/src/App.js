@@ -251,6 +251,7 @@ function App() {
             <SideNav>
               <Link to="/inbox">Входящие</Link>
               <Link to="/sent">Отправленные</Link>
+              <Link to="/trash">Корзина</Link>
               <Link to="/send">Отправить письмо</Link>
               {isAdmin && <Link to="/admin">Админ</Link>}
             </SideNav>
