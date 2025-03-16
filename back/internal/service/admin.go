@@ -12,6 +12,8 @@ type (
 	AdminService interface {
 		GetAllUsers(c *gin.Context)
 		DeleteUser(c *gin.Context)
+		GetAllMails(c *gin.Context)
+		DeleteMail(c *gin.Context)
 	}
 
 	adminService struct {
@@ -39,6 +41,26 @@ func (as *adminService) DeleteUser(c *gin.Context) {
 
 	if err := as.db.Where("id = ?", userID).Delete(&model.User{}).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error deleting user"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{})
+}
+
+func (as *adminService) GetAllMails(c *gin.Context) {
+	var mails []model.Mail
+	if err := as.db.Find(&mails).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error fetching mails"})
+		return
+	}
+	c.JSON(http.StatusOK, mails)
+}
+
+func (as *adminService) DeleteMail(c *gin.Context) {
+	mailID := c.Param("id")
+
+	if err := as.db.Where("id = ?", mailID).Delete(&model.Mail{}).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error deleting mail"})
 		return
 	}
 

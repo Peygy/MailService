@@ -7,13 +7,8 @@ import (
 	"fmt"
 	"log"
 	"net/smtp"
-	"strings"
 
 	"github.com/jordan-wright/email"
-)
-
-const (
-	domain = "gomail.kurs"
 )
 
 func SendMailSMTP(mail model.Mail, recs []string) error {
@@ -23,22 +18,15 @@ func SendMailSMTP(mail model.Mail, recs []string) error {
 		smtpPass = GetEnv("MAIL_PASS", "")
 	)
 
-	var filtered []string
-	for _, rec := range recs {
-		if !strings.Contains(rec, domain) {
-			filtered = append(filtered, rec)
-		}
-	}
-
-	if len(filtered) <= 0 {
+	if len(recs) <= 0 {
 		err := errors.New("receivers are empty")
 		log.Println("Receivers are empty:", err)
-		return err
+		return nil
 	}
 
 	e := email.NewEmail()
 	e.From = fmt.Sprintf("\"%s\" <%s>", mail.Sender, smtpUser)
-	e.To = filtered
+	e.To = recs
 	e.Subject = fmt.Sprintf("Письмо из GoMail! %s", mail.Subject)
 	e.Text = []byte(mail.Body)
 

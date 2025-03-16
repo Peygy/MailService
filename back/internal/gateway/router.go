@@ -34,6 +34,7 @@ func InitRouter(services service.Service, basicMw *utils.BasicAuthMiddleware,
 			mail.GET("/sent", services.MailService.GetSentMails)
 			mail.POST("/send", services.MailService.SendMail)
 			mail.POST("/trash", services.MailService.GetTrash)
+			mail.POST("/:id/unarchive", services.MailService.UnArchiveMail)
 			mail.POST("/:id/archive", services.MailService.ArchiveMail)
 			mail.DELETE("/:id/delete", services.MailService.DeleteMail)
 		}
@@ -42,6 +43,8 @@ func InitRouter(services service.Service, basicMw *utils.BasicAuthMiddleware,
 		{
 			admin.GET("/users", services.AdminService.GetAllUsers)
 			admin.DELETE("/users/:id", services.AdminService.DeleteUser)
+			admin.GET("/mails", services.AdminService.GetAllMails)
+			admin.DELETE("/mails/:id", services.AdminService.DeleteMail)
 		}
 	}
 

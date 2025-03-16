@@ -17,12 +17,17 @@ import (
 	"gorm.io/gorm"
 )
 
+const (
+	domain = "gomail.kurs"
+)
+
 type (
 	MailService interface {
 		GetInboxMails(c *gin.Context)
 		GetSentMails(c *gin.Context)
 		SendMail(c *gin.Context)
 		GetTrash(c *gin.Context)
+		UnArchiveMail(c *gin.Context)
 		ArchiveMail(c *gin.Context)
 		DeleteMail(c *gin.Context)
 	}
@@ -99,7 +104,7 @@ func (ms *mailService) GetSentMails(c *gin.Context) {
 	}
 
 	var mails []model.Mail
-	err := ms.db.Where("sender = ? AND is_deleted = false", user.Email).Find(&mails).Error
+	err := ms.db.Where("sender = ?", user.Email).Find(&mails).Error
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error fetching sent mails"})
 		return
@@ -169,7 +174,14 @@ func (ms *mailService) SendMail(c *gin.Context) {
 		Body:    mailData.Body,
 	}
 
-	if err := utils.SendMailSMTP(mail, mailData.Receivers); err != nil {
+	var filtered []string
+	for _, rec := range mailData.Receivers {
+		if !strings.Contains(rec, domain) {
+			filtered = append(filtered, rec)
+		}
+	}
+
+	if err := utils.SendMailSMTP(mail, filtered); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": fmt.Sprintf("Error sending email through SMTP: %v", err)})
 		return
 	}
@@ -186,13 +198,51 @@ func (ms *mailService) SendMail(c *gin.Context) {
 func (ms *mailService) GetTrash(c *gin.Context) {
 	userID := c.MustGet("userID").(uint)
 
+	type resp struct {
+		ID      int
+		Subject string
+		Body    string
+	}
+	var resps []resp
+
 	var tr model.Trash
-	if err := ms.db.Where("userId = ?", userID).First(&tr).Error; err != nil {
+	if err := ms.db.Where("user_id = ?", userID).First(&tr).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Archived mails not found"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"mails": tr.Archived})
+	for _, v := range tr.Archived {
+		var mail model.Mail
+		if err := ms.db.Where("id = ?", v).Find(&mail).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"message": "Error get mail for trash"})
+			return
+		}
+
+		resps = append(resps, resp{ID: int(mail.ID), Subject: mail.Subject, Body: mail.Body})
+	}
+
+	c.JSON(http.StatusOK, gin.H{"mails": resps})
+}
+
+func (ms *mailService) UnArchiveMail(c *gin.Context) {
+	userID := c.MustGet("userID").(uint)
+	mailID, _ := strconv.Atoi(c.Param("id"))
+
+	var tr model.Trash
+	if err := ms.db.Where("user_id = ?", userID).First(&tr).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Archived mails not found"})
+		return
+	}
+
+	mailIdx := int64s.IndexOf(tr.Archived, int64(mailID))
+	if err := ms.db.Model(&model.Trash{}).
+		Where("user_id = ?", userID).
+		Update("archived", append(tr.Archived[:mailIdx], tr.Archived[mailIdx+1:]...)).Error; err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid mailID"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{})
 }
 
 func (ms *mailService) ArchiveMail(c *gin.Context) {
@@ -200,13 +250,13 @@ func (ms *mailService) ArchiveMail(c *gin.Context) {
 	mailID, _ := strconv.Atoi(c.Param("id"))
 
 	var tr model.Trash
-	if err := ms.db.Where("userId = ?", userID).First(&tr).Error; err != nil {
+	if err := ms.db.Where("user_id = ?", userID).First(&tr).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Archived mails not found"})
 		return
 	}
 
 	if err := ms.db.Model(&model.Trash{}).
-		Where("userId = ?", userID).
+		Where("user_id = ?", userID).
 		Update("archived", append(tr.Archived, int64(mailID))).Error; err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid mailID"})
 		return
@@ -220,22 +270,24 @@ func (ms *mailService) DeleteMail(c *gin.Context) {
 	mailID, _ := strconv.Atoi(c.Param("id"))
 
 	var tr model.Trash
-	if err := ms.db.Where("userId = ?", userID).First(&tr).Error; err != nil {
+	if err := ms.db.Where("user_id = ?", userID).First(&tr).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Archived mails not found"})
 		return
 	}
 
 	mailIdx := int64s.IndexOf(tr.Archived, int64(mailID))
 	if err := ms.db.Model(&model.Trash{}).
+		Where("user_id = ?", userID).
 		Update("archived", append(tr.Archived[:mailIdx], tr.Archived[mailIdx+1:]...)).
-		Where("userId = ?", userID).Error; err != nil {
+		Error; err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid mailID"})
 		return
 	}
 
 	if err := ms.db.Model(&model.Trash{}).
+		Where("user_id = ?", userID).
 		Update("deleted", append(tr.Deleted, int64(mailID))).
-		Where("userId = ?", userID).Error; err != nil {
+		Error; err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid mailID"})
 		return
 	}
@@ -246,7 +298,7 @@ func (ms *mailService) DeleteMail(c *gin.Context) {
 // Check is mail archide or deleted
 func (ms *mailService) checkEmailStat(userID, mailID uint) (bool, error) {
 	var tr model.Trash
-	if err := ms.db.Model(&model.Trash{}).Where("userId = ?", userID).First(&tr).Error; err != nil {
+	if err := ms.db.Model(&model.Trash{}).Where("user_id = ?", userID).First(&tr).Error; err != nil {
 		return false, err
 	}
 

@@ -4,8 +4,10 @@ BIN = backend
 build:
 	$(MAKE) docker pass=$(pass)
 	$(MAKE) clean
-	go build -o $(BIN) ./main.go 
-	go run $(BIN) -dev
+	go build -o $(BIN) ./main.go
+	go run $(BIN)
+
+# go run $(BIN) -dev
 
 .PHONY: docker
 docker:

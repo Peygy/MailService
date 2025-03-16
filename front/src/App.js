@@ -198,6 +198,13 @@ const Table = styled.table`
   tr:hover {
     background-color: #3700b3;
   }
+  .sortable {
+    cursor: pointer;
+  }
+
+  .sortable:hover {
+    text-decoration: underline;
+  }
 `;
 
 function App() {
@@ -253,15 +260,27 @@ function App() {
               <Link to="/sent">Отправленные</Link>
               <Link to="/trash">Корзина</Link>
               <Link to="/send">Отправить письмо</Link>
-              {isAdmin && <Link to="/admin">Админ</Link>}
+              {isAdmin && (
+                    <>
+                    <h3>Админка</h3>
+                    <Link to="/admin/mails">Письма</Link>
+                    <Link to="/admin/users">Пользователи</Link>
+                  </>
+              )}
             </SideNav>
             <MainContent>
               <Container>
                 <Routes>
                   <Route path="/inbox" element={<Inbox authHeaders={authHeaders} showNotification={showNotification} />} />
                   <Route path="/sent" element={<Sent authHeaders={authHeaders} showNotification={showNotification} />} />
+                  <Route path="/trash" element={<Trash authHeaders={authHeaders} showNotification={showNotification} />} />
                   <Route path="/send" element={<SendMail authHeaders={authHeaders} showNotification={showNotification} />} />
-                  {isAdmin && <Route path="/admin" element={<Admin authHeaders={authHeaders} showNotification={showNotification} />}/>}
+                  {isAdmin && (
+                    <>
+                      <Route path="/admin/mails" element={<MailAdmin authHeaders={authHeaders} showNotification={showNotification} />} />
+                      <Route path="/admin/users" element={<UserAdmin authHeaders={authHeaders} showNotification={showNotification} />} />
+                    </>
+                  )}
                   <Route path="*" element={<Navigate to="/inbox" />} />
                 </Routes>
               </Container>
@@ -434,6 +453,20 @@ function Inbox({ authHeaders, showNotification }) {
       .catch(() => showNotification("Ошибка загрузки входящих"));
   }, [authHeaders, showNotification]);
 
+  const handleArchive = async (mailID) => {
+    try {
+      await axios.post(`${API_URL}/mail/${mailID}/archive`, {}, { headers: authHeaders });
+      setMails(mails.filter((mail) => mail.ID !== mailID));
+    } catch {
+      showNotification("Ошибка архивации письма");
+    }
+  };
+
+  const extractEmail = (sender) => {
+    const match = sender.match(/<([^>]+)>$/);
+    return match ? match[1] : sender;
+  };
+
   return (
     <div>
       <h2>Входящие</h2>
@@ -447,15 +480,19 @@ function Inbox({ authHeaders, showNotification }) {
               <th>Тема</th>
               <th>Содержание</th>
               <th>Дата получения</th>
+              <th>Действия</th>
             </tr>
           </thead>
           <tbody>
             {mails.map((mail) => (
               <tr key={mail.ID}>
-                <td>{mail.Sender}</td>
+                <td>{extractEmail(mail.Sender)}</td>
                 <td>{mail.Subject}</td>
                 <td>{mail.Body}</td>
                 <td>{new Date(mail.CreatedAt).toLocaleString()}</td>
+                <td>
+                  <button onClick={() => handleArchive(mail.ID)}>В корзину</button>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -463,7 +500,7 @@ function Inbox({ authHeaders, showNotification }) {
       )}
     </div>
   );
-}
+};
 
 function Sent({ authHeaders, showNotification }) {
   const [mails, setMails] = useState([]);
@@ -548,7 +585,7 @@ function SendMail({ authHeaders, showNotification }) {
   );
 }
 
-function Admin({ authHeaders, showNotification }) {
+function UserAdmin({ authHeaders, showNotification }) {
   const [users, setUsers] = useState([]);
   const isMounted = useRef(false);
 
@@ -572,7 +609,7 @@ function Admin({ authHeaders, showNotification }) {
 
   return (
     <div>
-      <h2>Панель администратора</h2>
+      <h2>Управление пользователями</h2>
       <ul>
         {users.map((user) => (
           <li key={user.Id}>{user.Email} - {user.Role} <button onClick={() => handleDelete(user.Id)}>Удалить</button></li>
@@ -581,5 +618,197 @@ function Admin({ authHeaders, showNotification }) {
     </div>
   );
 }
+
+function MailAdmin({ authHeaders, showNotification }) {
+  const [mails, setMails] = useState([]);
+  const [filter, setFilter] = useState("");
+  const [sortField, setSortField] = useState("CreatedAt");
+  const [sortOrder, setSortOrder] = useState("desc");
+
+  useEffect(() => {
+    if (authHeaders.Authorization) {
+      axios
+        .get(`${API_URL}/admin/mails`, { headers: authHeaders })
+        .then((res) => {
+          setMails(res.data || []);
+        })
+        .catch(() => showNotification("Ошибка загрузки писем"));
+    }
+  }, [authHeaders]);
+
+  const handleDelete = async (id) => {
+    try {
+      await axios.delete(`${API_URL}/admin/mails/${id}`, { headers: authHeaders });
+      setMails(mails.filter((mail) => mail.ID !== id));
+    } catch (err) {
+      showNotification(err.response?.data?.message || "Ошибка удаления письма");
+    }
+  };
+
+  const filteredMails = mails.filter((mail) =>
+    [mail.Sender, mail.Subject, mail.Body].some((field) =>
+      field.toLowerCase().includes(filter.toLowerCase())
+    )
+  );
+
+  const sortedMails = [...filteredMails].sort((a, b) => {
+    if (sortField === "CreatedAt") {
+      return sortOrder === "asc"
+        ? new Date(a[sortField]) - new Date(b[sortField])
+        : new Date(b[sortField]) - new Date(a[sortField]);
+    }
+    return sortOrder === "asc"
+      ? a[sortField].localeCompare(b[sortField])
+      : b[sortField].localeCompare(a[sortField]);
+  });
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortOrder("asc");
+    }
+  };
+
+  const extractEmail = (sender) => {
+    const match = sender.match(/<([^>]+)>$/);
+    return match ? match[1] : sender;
+  };
+
+  return (
+    <div>
+      <h2>Управление письмами</h2>
+      <input
+        type="text"
+        placeholder="Фильтр по отправителю, теме, телу"
+        value={filter}
+        onChange={(e) => setFilter(e.target.value)}
+      />
+      {mails.length === 0 ? (
+        <p>Нет писем</p>
+      ) : (
+        <Table>
+          <thead>
+            <tr>
+              <th
+                className="sortable"
+                onClick={() => handleSort("Sender")}
+              >
+                Отправитель
+              </th>
+              <th
+                className="sortable"
+                onClick={() => handleSort("Subject")}
+              >
+                Тема
+              </th>
+              <th>Тело</th>
+              <th
+                className="sortable"
+                onClick={() => handleSort("CreatedAt")}
+              >
+                Дата
+              </th>
+              <th>Действия</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sortedMails.map((mail) => (
+              <tr key={mail.ID}>
+                <td>{extractEmail(mail.Sender)}</td>
+                <td>{mail.Subject}</td>
+                <td>{mail.Body}</td>
+                <td>{new Date(mail.CreatedAt).toLocaleString()}</td>
+                <td>
+                  <button onClick={() => handleDelete(mail.ID)}>Удалить</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      )}
+    </div>
+  );
+}
+
+const Trash = ({ authHeaders, showNotification }) => {
+  const [mails, setMails] = useState([]);
+
+  const fetchTrash = () => {
+    axios.post(`${API_URL}/mail/trash`, {}, { headers: authHeaders })
+      .then((res) => setMails(res.data.mails || []))
+      .catch(() => showNotification("Ошибка загрузки корзины"));
+  };
+
+  useEffect(() => {
+    fetchTrash();
+  }, []);
+
+  const handleRestore = async (mailID) => {
+    try {
+      await axios.post(`${API_URL}/mail/${mailID}/unarchive`, {}, { headers: authHeaders });
+      setMails(mails.filter((mail) => mail.ID !== mailID));;
+    } catch {
+      showNotification("Ошибка восстановления письма");
+    }
+  };
+
+  const handleDelete = async (mailID) => {
+    try {
+      await axios.delete(`${API_URL}/mail/${mailID}/delete`, { headers: authHeaders });
+      fetchTrash();
+    } catch {
+      showNotification("Ошибка удаления письма");
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    try {
+      await Promise.all(mails.map(mail => 
+        axios.delete(`${API_URL}/mail/${mail.ID}`, { headers: authHeaders })
+      ));
+      setMails([]);
+    } catch {
+      showNotification("Ошибка очистки корзины");
+    }
+  };
+
+  return (
+    <div>
+      <h2>Корзина</h2>
+      {mails.length === 0 ? (
+        <p>Корзина пуста</p>
+      ) : (
+        <>
+          <button onClick={handleDeleteAll}>Очистить корзину</button>
+          <Table>
+            <thead>
+              <tr>
+                <th>Тема</th>
+                <th>Содержание</th>
+                <th>Действия</th>
+              </tr>
+            </thead>
+            <tbody>
+              {mails.map((mail) => (
+                <tr key={mail.ID}>
+                  <td>{mail.Subject}</td>
+                  <td>{mail.Body}</td>
+                  <td>
+                    <button onClick={() => handleRestore(mail.ID)}>Восстановить</button>
+                    <button onClick={() => handleDelete(mail.ID)} style={{ marginLeft: "8px", backgroundColor: "red" }}>
+                      Удалить
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        </>
+      )}
+    </div>
+  );
+};
 
 export default App;

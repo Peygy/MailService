@@ -11,7 +11,6 @@ type (
 		gorm.Model
 		Sender    string       `gorm:"not null"`
 		Receivers pgtype.JSONB `gorm:"type:jsonb;default:'[]';not null"`
-
 		Subject string
 		Body    string
 	}
