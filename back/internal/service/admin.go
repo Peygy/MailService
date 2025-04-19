@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
 
 type (
@@ -17,11 +16,11 @@ type (
 	}
 
 	adminService struct {
-		db *gorm.DB
+		db model.MailDB
 	}
 )
 
-func NewAdminService(db *gorm.DB) AdminService {
+func NewAdminService(db model.MailDB) AdminService {
 	return &adminService{
 		db: db,
 	}
@@ -29,7 +28,7 @@ func NewAdminService(db *gorm.DB) AdminService {
 
 func (as *adminService) GetAllUsers(c *gin.Context) {
 	var users []model.User
-	if err := as.db.Where("role <> ?", model.RoleAdmin).Find(&users).Error; err != nil {
+	if err := as.db.Where("role <> ?", model.RoleAdmin).Find(&users).Error(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error fetching users"})
 		return
 	}
@@ -39,7 +38,7 @@ func (as *adminService) GetAllUsers(c *gin.Context) {
 func (as *adminService) DeleteUser(c *gin.Context) {
 	userID := c.Param("id")
 
-	if err := as.db.Where("id = ?", userID).Delete(&model.User{}).Error; err != nil {
+	if err := as.db.Where("id = ?", userID).Delete(&model.User{}).Error(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error deleting user"})
 		return
 	}
@@ -49,7 +48,7 @@ func (as *adminService) DeleteUser(c *gin.Context) {
 
 func (as *adminService) GetAllMails(c *gin.Context) {
 	var mails []model.Mail
-	if err := as.db.Find(&mails).Error; err != nil {
+	if err := as.db.Find(&mails).Error(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error fetching mails"})
 		return
 	}
@@ -59,7 +58,7 @@ func (as *adminService) GetAllMails(c *gin.Context) {
 func (as *adminService) DeleteMail(c *gin.Context) {
 	mailID := c.Param("id")
 
-	if err := as.db.Where("id = ?", mailID).Delete(&model.Mail{}).Error; err != nil {
+	if err := as.db.Where("id = ?", mailID).Delete(&model.Mail{}).Error(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error deleting mail"})
 		return
 	}

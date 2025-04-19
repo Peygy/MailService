@@ -5,14 +5,13 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
 
 type RoleMiddleware struct {
-	db *gorm.DB
+	db model.MailDB
 }
 
-func NewRoleMiddleware(db *gorm.DB) *RoleMiddleware {
+func NewRoleMiddleware(db model.MailDB) *RoleMiddleware {
 	return &RoleMiddleware{
 		db: db,
 	}
@@ -23,7 +22,7 @@ func (rr *RoleMiddleware) Middleware(role string) gin.HandlerFunc {
 		userID := c.MustGet("userID").(uint)
 
 		var user model.User
-		if err := rr.db.First(&user, userID).Error; err != nil {
+		if err := rr.db.First(&user, userID).Error(); err != nil {
 			c.JSON(http.StatusForbidden, gin.H{"message": "User not found"})
 			c.Abort()
 			return

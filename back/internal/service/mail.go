@@ -15,7 +15,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/kyroy/go-slices/int64s"
-	"gorm.io/gorm"
 )
 
 const (
@@ -34,11 +33,11 @@ type (
 	}
 
 	mailService struct {
-		db *gorm.DB
+		db model.MailDB
 	}
 )
 
-func NewMailService(db *gorm.DB) MailService {
+func NewMailService(db model.MailDB) MailService {
 	return &mailService{
 		db: db,
 	}
@@ -48,13 +47,13 @@ func (ms *mailService) GetInboxMails(c *gin.Context) {
 	userID := c.MustGet("userID").(uint)
 
 	var user model.User
-	if err := ms.db.Where("id = ?", userID).First(&user).Error; err != nil {
+	if err := ms.db.Where("id = ?", userID).First(&user).Error(); err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"message": "Invalid email"})
 		return
 	}
 
 	var mails []model.Mail
-	if err := ms.db.Find(&mails).Error; err != nil {
+	if err := ms.db.Find(&mails).Error(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error fetching mails"})
 		return
 	}
@@ -99,14 +98,13 @@ func (ms *mailService) GetSentMails(c *gin.Context) {
 	userID := c.MustGet("userID").(uint)
 
 	var user model.User
-	if err := ms.db.Where("id = ?", userID).First(&user).Error; err != nil {
+	if err := ms.db.Where("id = ?", userID).First(&user).Error(); err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"message": "Invalid credentials"})
 		return
 	}
 
 	var mails []model.Mail
-	err := ms.db.Where("sender = ?", user.Email).Find(&mails).Error
-	if err != nil {
+	if err := ms.db.Where("sender = ?", user.Email).Find(&mails).Error(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error fetching sent mails"})
 		return
 	}
@@ -164,7 +162,7 @@ func (ms *mailService) SendMail(c *gin.Context) {
 	}
 
 	var user model.User
-	if err := ms.db.Where("id = ?", userID).First(&user).Error; err != nil {
+	if err := ms.db.Where("id = ?", userID).First(&user).Error(); err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"message": "Invalid credentials"})
 		return
 	}
@@ -188,7 +186,7 @@ func (ms *mailService) SendMail(c *gin.Context) {
 	}
 	mail.Receivers.Set(mailData.Receivers)
 
-	if err := ms.db.Create(&mail).Error; err != nil {
+	if err := ms.db.Create(&mail).Error(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error sending mail"})
 		return
 	}
@@ -208,14 +206,14 @@ func (ms *mailService) GetTrash(c *gin.Context) {
 	var resps []resp
 
 	var tr model.Trash
-	if err := ms.db.Where("user_id = ?", userID).First(&tr).Error; err != nil {
+	if err := ms.db.Where("user_id = ?", userID).First(&tr).Error(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Archived mails not found"})
 		return
 	}
 
 	for _, v := range tr.Archived {
 		var mail model.Mail
-		if err := ms.db.Where("id = ?", v).Find(&mail).Error; err != nil {
+		if err := ms.db.Where("id = ?", v).Find(&mail).Error(); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"message": "Error get mail for trash"})
 			return
 		}
@@ -231,7 +229,7 @@ func (ms *mailService) UnArchiveMail(c *gin.Context) {
 	mailID, _ := strconv.Atoi(c.Param("id"))
 
 	var tr model.Trash
-	if err := ms.db.Where("user_id = ?", userID).First(&tr).Error; err != nil {
+	if err := ms.db.Where("user_id = ?", userID).First(&tr).Error(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Archived mails not found"})
 		return
 	}
@@ -239,7 +237,7 @@ func (ms *mailService) UnArchiveMail(c *gin.Context) {
 	mailIdx := int64s.IndexOf(tr.Archived, int64(mailID))
 	if err := ms.db.Model(&model.Trash{}).
 		Where("user_id = ?", userID).
-		Update("archived", append(tr.Archived[:mailIdx], tr.Archived[mailIdx+1:]...)).Error; err != nil {
+		Update("archived", append(tr.Archived[:mailIdx], tr.Archived[mailIdx+1:]...)).Error(); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid mailID"})
 		return
 	}
@@ -252,14 +250,14 @@ func (ms *mailService) ArchiveMail(c *gin.Context) {
 	mailID, _ := strconv.Atoi(c.Param("id"))
 
 	var tr model.Trash
-	if err := ms.db.Where("user_id = ?", userID).First(&tr).Error; err != nil {
+	if err := ms.db.Where("user_id = ?", userID).First(&tr).Error(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Archived mails not found"})
 		return
 	}
 
 	if err := ms.db.Model(&model.Trash{}).
 		Where("user_id = ?", userID).
-		Update("archived", append(tr.Archived, int64(mailID))).Error; err != nil {
+		Update("archived", append(tr.Archived, int64(mailID))).Error(); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid mailID"})
 		return
 	}
@@ -272,7 +270,7 @@ func (ms *mailService) DeleteMail(c *gin.Context) {
 	mailID, _ := strconv.Atoi(c.Param("id"))
 
 	var tr model.Trash
-	if err := ms.db.Where("user_id = ?", userID).First(&tr).Error; err != nil {
+	if err := ms.db.Where("user_id = ?", userID).First(&tr).Error(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Archived mails not found"})
 		return
 	}
@@ -280,16 +278,14 @@ func (ms *mailService) DeleteMail(c *gin.Context) {
 	mailIdx := int64s.IndexOf(tr.Archived, int64(mailID))
 	if err := ms.db.Model(&model.Trash{}).
 		Where("user_id = ?", userID).
-		Update("archived", append(tr.Archived[:mailIdx], tr.Archived[mailIdx+1:]...)).
-		Error; err != nil {
+		Update("archived", append(tr.Archived[:mailIdx], tr.Archived[mailIdx+1:]...)).Error(); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid mailID"})
 		return
 	}
 
 	if err := ms.db.Model(&model.Trash{}).
 		Where("user_id = ?", userID).
-		Update("deleted", append(tr.Deleted, int64(mailID))).
-		Error; err != nil {
+		Update("deleted", append(tr.Deleted, int64(mailID))).Error(); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid mailID"})
 		return
 	}
@@ -299,7 +295,7 @@ func (ms *mailService) DeleteMail(c *gin.Context) {
 
 func (ms *mailService) checkEmailStat(userID, mailID uint) (bool, error) {
 	var tr model.Trash
-	if err := ms.db.Model(&model.Trash{}).Where("user_id = ?", userID).First(&tr).Error; err != nil {
+	if err := ms.db.Model(&model.Trash{}).Where("user_id = ?", userID).First(&tr).Error(); err != nil {
 		return false, err
 	}
 

@@ -14,10 +14,9 @@ import (
 	"github.com/emersion/go-imap"
 	"github.com/emersion/go-imap/client"
 	"golang.org/x/net/html"
-	"gorm.io/gorm"
 )
 
-func ReadMailIMAP(db *gorm.DB) error {
+func ReadMailIMAP(db model.MailDB) error {
 	var (
 		imapHost = GetEnv("IMAP_HOST", "")
 		imapUser = GetEnv("IMAP_USER", "")

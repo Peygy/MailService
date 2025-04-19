@@ -6,14 +6,13 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
-	"gorm.io/gorm"
 )
 
 type BasicAuthMiddleware struct {
-	db *gorm.DB
+	db model.MailDB
 }
 
-func NewBasicAuthMiddleware(db *gorm.DB) *BasicAuthMiddleware {
+func NewBasicAuthMiddleware(db model.MailDB) *BasicAuthMiddleware {
 	return &BasicAuthMiddleware{
 		db: db,
 	}
@@ -30,7 +29,7 @@ func (mw *BasicAuthMiddleware) Middleware() gin.HandlerFunc {
 		}
 
 		var user model.User
-		if err := mw.db.Where("email = ?", username).First(&user).Error; err != nil {
+		if err := mw.db.Where("email = ?", username).First(&user).Error(); err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"message": "Invalid email"})
 			c.Abort()
 			return

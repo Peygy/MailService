@@ -6,7 +6,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
-	"gorm.io/gorm"
 )
 
 type (
@@ -16,11 +15,11 @@ type (
 	}
 
 	authService struct {
-		db *gorm.DB
+		db model.MailDB
 	}
 )
 
-func NewAuthService(db *gorm.DB) AuthService {
+func NewAuthService(db model.MailDB) AuthService {
 	return &authService{
 		db: db,
 	}
@@ -56,11 +55,11 @@ func (as *authService) RegisterUser(c *gin.Context) {
 	}
 	user.Password = string(hashedPassword)
 
-	if err := as.db.Create(&user).Error; err != nil {
+	if err := as.db.Create(&user).Error(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error creating user"})
 		return
 	}
-	if err := as.db.Create(&model.Trash{UserId: user.Id}); err != nil {
+	if err := as.db.Create(&model.Trash{UserId: user.Id}).Error(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"message": "Error creating trash"})
 		return
 	}
@@ -80,7 +79,7 @@ func (as *authService) Login(c *gin.Context) {
 	}
 
 	var user model.User
-	if err := as.db.Where("email = ?", input.Email).First(&user).Error; err != nil {
+	if err := as.db.Where("email = ?", input.Email).First(&user).Error(); err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"message": "Invalid email"})
 		return
 	}

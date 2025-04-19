@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"backend/internal/gateway"
+	"backend/internal/model"
 	"backend/internal/service"
 	"backend/utils"
 	"log"
@@ -12,12 +13,12 @@ import (
 )
 
 type App struct {
-	db *gorm.DB
+	db model.MailDB
 }
 
 func NewApp(db *gorm.DB) *App {
 	return &App{
-		db: db,
+		db: model.NewMailDB(db),
 	}
 }
 
