@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate, Navigate } from "react-router-dom";
 import axios from "axios";
-import { styled, createGlobalStyle } from 'styled-components';
+import { styled, createGlobalStyle, keyframes } from 'styled-components';
 
 const API_URL = "http://localhost:8081/api/v1";
 
@@ -62,6 +62,65 @@ const GlobalStyle = createGlobalStyle`
       background-color: #3700b3; 
     }
   }
+`;
+
+const fadeIn = keyframes`
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+`;
+
+const fadeOut = keyframes`
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.95); }
+`;
+
+const MailPopup = styled.div`
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) !important;;
+  background-color: #1e1e1e;
+  border: 2px solid #bb86fc;
+  padding: 20px;
+  border-radius: 8px;
+  z-index: 1000;
+  max-width: 600px;
+  width: 90%;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  animation: ${props => props.$isClosing ? fadeOut : fadeIn} 0.3s ease-in-out;
+  
+  h3 {
+    margin-top: 0;
+    color: #bb86fc;
+    border-bottom: 1px solid #bb86fc;
+    padding-bottom: 10px;
+  }
+  
+  p {
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  
+  button {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: none;
+    border: none;
+    color: #bb86fc;
+    font-size: 20px;
+    cursor: pointer;
+  }
+`;
+
+const Overlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  z-index: 999;
 `;
 
 const NotificationContainer = styled.div`
@@ -197,6 +256,7 @@ const Table = styled.table`
   }
   tr:hover {
     background-color: #3700b3;
+    cursor: pointer;
   }
   .sortable {
     cursor: pointer;
@@ -444,8 +504,32 @@ function Register({ onReg, showNotification }) {
   );
 }
 
+function MailDetailsPopup({ mail, onClose }) {
+  const [isClosing, setIsClosing] = useState(false);
+
+  const handleClose = () => {
+    setIsClosing(true);
+    setTimeout(() => {
+      onClose();
+    }, 300);
+  };
+
+  return (
+    <>
+      <Overlay onClick={handleClose} />
+      <MailPopup $isClosing={isClosing}>
+        <button onClick={handleClose}>×</button>
+        <h3>{mail.Subject}</h3>
+        <p>{mail.Body}</p>
+      </MailPopup>
+    </>
+  );
+}
+
 function Inbox({ authHeaders, showNotification }) {
   const [mails, setMails] = useState([]);
+  const [selectedMail, setSelectedMail] = useState(null);
+  const [lastClickTime, setLastClickTime] = useState(0);
 
   useEffect(() => {
     axios.get(`${API_URL}/mail/inbox`, { headers: authHeaders })
@@ -467,6 +551,15 @@ function Inbox({ authHeaders, showNotification }) {
     return match ? match[1] : sender;
   };
 
+  const handleRowClick = (mail, e) => {
+    const now = new Date().getTime();
+    if (now - lastClickTime < 300) {
+      // Двойной клик
+      setSelectedMail(mail);
+    }
+    setLastClickTime(now);
+  };
+
   return (
     <div>
       <h2>Входящие</h2>
@@ -477,26 +570,31 @@ function Inbox({ authHeaders, showNotification }) {
           <thead>
             <tr>
               <th>Отправитель</th>
-              <th>Тема</th>
-              <th>Содержание</th>
               <th>Дата получения</th>
               <th>Действия</th>
             </tr>
           </thead>
           <tbody>
             {mails.map((mail) => (
-              <tr key={mail.ID}>
+              <tr key={mail.ID} onClick={(e) => handleRowClick(mail, e)}>
                 <td>{extractEmail(mail.Sender)}</td>
-                <td>{mail.Subject}</td>
-                <td>{mail.Body}</td>
                 <td>{new Date(mail.CreatedAt).toLocaleString()}</td>
                 <td>
-                  <button onClick={() => handleArchive(mail.ID)}>В корзину</button>
+                  <button onClick={(e) => {
+                    e.stopPropagation();
+                    handleArchive(mail.ID);
+                  }}>В корзину</button>
                 </td>
               </tr>
             ))}
           </tbody>
         </Table>
+      )}
+      {selectedMail && (
+        <MailDetailsPopup 
+          mail={selectedMail} 
+          onClose={() => setSelectedMail(null)} 
+        />
       )}
     </div>
   );
@@ -504,12 +602,23 @@ function Inbox({ authHeaders, showNotification }) {
 
 function Sent({ authHeaders, showNotification }) {
   const [mails, setMails] = useState([]);
+  const [selectedMail, setSelectedMail] = useState(null);
+  const [lastClickTime, setLastClickTime] = useState(0);
 
   useEffect(() => {
     axios.get(`${API_URL}/mail/sent`, { headers: authHeaders })
       .then((res) => setMails(res.data.mails))
       .catch(() => showNotification("Ошибка загрузки отправленных"));
   }, [authHeaders, showNotification]);
+
+  const handleRowClick = (mail, e) => {
+    const now = new Date().getTime();
+    if (now - lastClickTime < 300) {
+      // Двойной клик
+      setSelectedMail(mail);
+    }
+    setLastClickTime(now);
+  };
 
   return (
     <div>
@@ -521,22 +630,24 @@ function Sent({ authHeaders, showNotification }) {
           <thead>
             <tr>
               <th>Получатели</th>
-              <th>Тема</th>
-              <th>Содержание</th>
               <th>Дата отправки</th>
             </tr>
           </thead>
           <tbody>
             {mails.map((mail) => (
-              <tr key={mail.ID}>
+              <tr key={mail.ID} onClick={(e) => handleRowClick(mail, e)}>
                 <td>{mail.Receivers}</td>
-                <td>{mail.Subject}</td>
-                <td>{mail.Body}</td>
                 <td>{new Date(mail.CreatedAt).toLocaleString()}</td>
               </tr>
             ))}
           </tbody>
         </Table>
+      )}
+      {selectedMail && (
+        <MailDetailsPopup 
+          mail={selectedMail} 
+          onClose={() => setSelectedMail(null)} 
+        />
       )}
     </div>
   );
@@ -624,6 +735,8 @@ function MailAdmin({ authHeaders, showNotification }) {
   const [filter, setFilter] = useState("");
   const [sortField, setSortField] = useState("CreatedAt");
   const [sortOrder, setSortOrder] = useState("desc");
+  const [selectedMail, setSelectedMail] = useState(null);
+  const [lastClickTime, setLastClickTime] = useState(0);
 
   useEffect(() => {
     if (authHeaders.Authorization) {
@@ -676,12 +789,21 @@ function MailAdmin({ authHeaders, showNotification }) {
     return match ? match[1] : sender;
   };
 
+  const handleRowClick = (mail, e) => {
+    const now = new Date().getTime();
+    if (now - lastClickTime < 300) {
+      // Двойной клик
+      setSelectedMail(mail);
+    }
+    setLastClickTime(now);
+  };
+
   return (
     <div>
       <h2>Управление письмами</h2>
-      <input
+      <input 
         type="text"
-        placeholder="Фильтр по отправителю, теме, телу"
+        placeholder="Фильтр"
         value={filter}
         onChange={(e) => setFilter(e.target.value)}
       />
@@ -697,36 +819,31 @@ function MailAdmin({ authHeaders, showNotification }) {
               >
                 Отправитель
               </th>
-              <th
-                className="sortable"
-                onClick={() => handleSort("Subject")}
-              >
-                Тема
-              </th>
-              <th>Тело</th>
-              <th
-                className="sortable"
-                onClick={() => handleSort("CreatedAt")}
-              >
-                Дата
-              </th>
+              <th>Дата</th>
               <th>Действия</th>
             </tr>
           </thead>
           <tbody>
             {sortedMails.map((mail) => (
-              <tr key={mail.ID}>
+              <tr key={mail.ID} onClick={(e) => handleRowClick(mail, e)}>
                 <td>{extractEmail(mail.Sender)}</td>
-                <td>{mail.Subject}</td>
-                <td>{mail.Body}</td>
                 <td>{new Date(mail.CreatedAt).toLocaleString()}</td>
                 <td>
-                  <button onClick={() => handleDelete(mail.ID)}>Удалить</button>
+                  <button onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete(mail.ID);
+                  }}>Удалить</button>
                 </td>
               </tr>
             ))}
           </tbody>
         </Table>
+      )}
+      {selectedMail && (
+        <MailDetailsPopup 
+          mail={selectedMail} 
+          onClose={() => setSelectedMail(null)} 
+        />
       )}
     </div>
   );
@@ -734,6 +851,8 @@ function MailAdmin({ authHeaders, showNotification }) {
 
 const Trash = ({ authHeaders, showNotification }) => {
   const [mails, setMails] = useState([]);
+  const [selectedMail, setSelectedMail] = useState(null);
+  const [lastClickTime, setLastClickTime] = useState(0);
 
   const fetchTrash = () => {
     axios.post(`${API_URL}/mail/trash`, {}, { headers: authHeaders })
@@ -774,6 +893,15 @@ const Trash = ({ authHeaders, showNotification }) => {
     }
   };
 
+  const handleRowClick = (mail, e) => {
+    const now = new Date().getTime();
+    if (now - lastClickTime < 300) {
+      // Двойной клик
+      setSelectedMail(mail);
+    }
+    setLastClickTime(now);
+  };
+
   return (
     <div>
       <h2>Корзина</h2>
@@ -786,18 +914,24 @@ const Trash = ({ authHeaders, showNotification }) => {
             <thead>
               <tr>
                 <th>Тема</th>
-                <th>Содержание</th>
+                <th>Дата</th>
                 <th>Действия</th>
               </tr>
             </thead>
             <tbody>
               {mails.map((mail) => (
-                <tr key={mail.ID}>
+                <tr key={mail.ID} onClick={(e) => handleRowClick(mail, e)}>
                   <td>{mail.Subject}</td>
-                  <td>{mail.Body}</td>
+                  <td>{new Date(mail.CreatedAt).toLocaleString()}</td>
                   <td>
-                    <button onClick={() => handleRestore(mail.ID)}>Восстановить</button>
-                    <button onClick={() => handleDelete(mail.ID)} style={{ marginLeft: "8px", backgroundColor: "red" }}>
+                    <button onClick={(e) => {
+                      e.stopPropagation();
+                      handleRestore(mail.ID);
+                    }}>Восстановить</button>
+                    <button onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(mail.ID);
+                    }} style={{ marginLeft: "8px", backgroundColor: "red" }}>
                       Удалить
                     </button>
                   </td>
@@ -806,6 +940,12 @@ const Trash = ({ authHeaders, showNotification }) => {
             </tbody>
           </Table>
         </>
+      )}
+      {selectedMail && (
+        <MailDetailsPopup 
+          mail={selectedMail} 
+          onClose={() => setSelectedMail(null)} 
+        />
       )}
     </div>
   );

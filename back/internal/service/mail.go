@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/kyroy/go-slices/int64s"
@@ -199,9 +200,10 @@ func (ms *mailService) GetTrash(c *gin.Context) {
 	userID := c.MustGet("userID").(uint)
 
 	type resp struct {
-		ID      int
-		Subject string
-		Body    string
+		ID        int
+		Subject   string
+		Body      string
+		CreatedAt time.Time
 	}
 	var resps []resp
 
@@ -218,7 +220,7 @@ func (ms *mailService) GetTrash(c *gin.Context) {
 			return
 		}
 
-		resps = append(resps, resp{ID: int(mail.ID), Subject: mail.Subject, Body: mail.Body})
+		resps = append(resps, resp{ID: int(mail.ID), Subject: mail.Subject, Body: mail.Body, CreatedAt: mail.CreatedAt})
 	}
 
 	c.JSON(http.StatusOK, gin.H{"mails": resps})
@@ -295,7 +297,6 @@ func (ms *mailService) DeleteMail(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{})
 }
 
-// Check is mail archide or deleted
 func (ms *mailService) checkEmailStat(userID, mailID uint) (bool, error) {
 	var tr model.Trash
 	if err := ms.db.Model(&model.Trash{}).Where("user_id = ?", userID).First(&tr).Error; err != nil {
