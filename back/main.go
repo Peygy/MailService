@@ -73,7 +73,7 @@ func devRun() {
 			log.Printf("User %s created successfully", user.Email)
 		}
 
-		if err := db.Create(&model.Trash{UserId: user.Id}); err != nil {
+		if err := db.Create(&model.Trash{UserId: user.Id}).Error; err != nil {
 			log.Printf("Failed to create trash for user %s: %v", user.Email, err)
 		}
 	}

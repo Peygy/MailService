@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Link, useNavigate, Navigate } f
 import axios from "axios";
 import { styled, createGlobalStyle, keyframes } from 'styled-components';
 
-const API_URL = "http://localhost:8081/api/v1";
+const API_URL = "/api/v1";
 
 const GlobalStyle = createGlobalStyle`
   body {
@@ -554,7 +554,6 @@ function Inbox({ authHeaders, showNotification }) {
   const handleRowClick = (mail, e) => {
     const now = new Date().getTime();
     if (now - lastClickTime < 300) {
-      // Двойной клик
       setSelectedMail(mail);
     }
     setLastClickTime(now);
@@ -792,7 +791,6 @@ function MailAdmin({ authHeaders, showNotification }) {
   const handleRowClick = (mail, e) => {
     const now = new Date().getTime();
     if (now - lastClickTime < 300) {
-      // Двойной клик
       setSelectedMail(mail);
     }
     setLastClickTime(now);
@@ -896,7 +894,6 @@ const Trash = ({ authHeaders, showNotification }) => {
   const handleRowClick = (mail, e) => {
     const now = new Date().getTime();
     if (now - lastClickTime < 300) {
-      // Двойной клик
       setSelectedMail(mail);
     }
     setLastClickTime(now);

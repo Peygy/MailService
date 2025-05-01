@@ -5,7 +5,6 @@ import (
 	"backend/internal/service"
 	"backend/utils"
 	"log"
-	"os"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -48,10 +47,7 @@ func InitRouter(services service.Service, basicMw *utils.BasicAuthMiddleware,
 		}
 	}
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8081"
-	}
+	port := "8081"
 
 	log.Printf("Run server on port = %s", port)
 	router.Run(":" + port)
