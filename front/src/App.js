@@ -613,7 +613,6 @@ function Sent({ authHeaders, showNotification }) {
   const handleRowClick = (mail, e) => {
     const now = new Date().getTime();
     if (now - lastClickTime < 300) {
-      // Двойной клик
       setSelectedMail(mail);
     }
     setLastClickTime(now);

@@ -1,4 +1,4 @@
-# Go
+# Back go
 FROM golang:1.23.6-alpine AS go-builder
 WORKDIR /app
 COPY ./back/go.mod ./back/go.sum ./
@@ -6,7 +6,7 @@ RUN go mod download
 COPY back/ .
 RUN CGO_ENABLED=0 GOOS=linux go build -o /app/server
 
-# React
+# Client react
 FROM node:18 AS react-builder
 WORKDIR /app
 COPY front/package.json front/package-lock.json ./
