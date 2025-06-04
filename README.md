@@ -48,3 +48,30 @@
 
 *   **Email:** `admin@admin.gomail.kurs`
 *   **Пароль:** `12344adm`
+
+## Запуск проекта
+
+Для запуска проекта с использованием Docker Compose выполните следующую команду в корневой директории проекта:
+
+```bash
+docker-compose up -d
+```
+
+Эта команда соберет (если необходимо) и запустит все сервисы, определенные в файле `docker-compose.yml`, в фоновом режиме.
+
+## Конфигурация (`.env`)
+
+Серверная часть приложения, расположенная в директории `back/`, использует файл `.env` для загрузки переменных окружения при локальном запуске (без Docker Compose). Этот файл не включается в репозиторий (`.gitignore`).
+
+Пример содержимого файла `.env`:
+
+```dotenv
+DB_CONF="host=localhost user=your_db_user password=your_db_password dbname=your_db_name port=your_db_port sslmode=disable"
+MAIL_PASS="your_email_password"
+SMTP_HOST="your_smtp_host"
+SMTP_USER="your_smtp_user"
+IMAP_HOST="your_imap_host:port"
+IMAP_USER="your_imap_user"
+```
+
+Замените значения на свои учетные данные и настройки базы данных/почтового сервера. При запуске через Docker Compose переменные окружения берутся из файла `docker-compose.yml`.
