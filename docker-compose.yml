@@ -1,0 +1,31 @@
+version: "3.9"
+services:
+  app:
+    build: .
+    environment:
+      DB_CONF: "host=db user=postgres password=postgres dbname=mails port=5432 sslmode=disable"
+      MAIL_PASS: "ksqlnlmpvmsvivrt"
+      SMTP_HOST: "smtp.yandex.ru"
+      SMTP_USER: "isakovl@yandex.ru"
+      IMAP_HOST: "imap.yandex.ru:993"
+      IMAP_USER: "isakovl"
+    ports:
+      - "80:80"
+    depends_on:
+      db:
+        condition: service_healthy
+        restart: true
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: "mails"
+      POSTGRES_USER: "postgres"
+      POSTGRES_PASSWORD: "postgres"
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d mails"]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 10s

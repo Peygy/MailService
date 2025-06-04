@@ -882,7 +882,7 @@ const Trash = ({ authHeaders, showNotification }) => {
   const handleDeleteAll = async () => {
     try {
       await Promise.all(mails.map(mail => 
-        axios.delete(`${API_URL}/mail/${mail.ID}`, { headers: authHeaders })
+        axios.delete(`${API_URL}/mail/${mail.ID}/delete`, { headers: authHeaders })
       ));
       setMails([]);
     } catch {
